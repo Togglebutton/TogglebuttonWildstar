@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Addon Author="" APIVersion="7" Name="DialogTest" Description="">
+    <Script Name="DialogTest.lua"/>
+    <Form Name="DialogTest.xml"/>
+	<Script Name="Libs\DialogLib.lua"/>
+</Addon>

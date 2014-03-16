@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<Forms>
+    <Form Class="Window" LAnchorPoint="0.5" LAnchorOffset="-195" TAnchorPoint="0.5" TAnchorOffset="-226" RAnchorPoint="0.5" RAnchorOffset="400" BAnchorPoint="0.5" BAnchorOffset="-3" RelativeToClient="1" Font="Default" Text="" Template="CRB_NormalFramedThick_StandardHdrFtr" Name="DialogTestForm" Border="0" Picture="0" SwallowMouseClicks="1" Moveable="1" Escapable="1" Overlapped="1" BGColor="ffffffff" TextColor="ffffffff" TextId="" TooltipColor="" Tooltip="">
+        <Control Class="Window" LAnchorPoint="0" LAnchorOffset="31" TAnchorPoint="0" TAnchorOffset="18" RAnchorPoint="1" RAnchorOffset="-41" BAnchorPoint="0" BAnchorOffset="47" RelativeToClient="1" Font="CRB_InterfaceMedium" Template="Default" Name="Title" BGColor="ffffffff" TextColor="ffc0c0c0" DT_VCENTER="1" DT_CENTER="1" NewControlDepth="2" TextId="CRB_Title" Text="" TooltipColor=""/>
+        <Control Class="Button" Base="CRB_UIKitSprites:btn_square_LARGE_Green" Font="CRB_InterfaceMedium" ButtonType="PushButton" RadioGroup="" LAnchorPoint="1" LAnchorOffset="-363" TAnchorPoint="1" TAnchorOffset="-147" RAnchorPoint="1" RAnchorOffset="-243" BAnchorPoint="1" BAnchorOffset="-106" DT_VCENTER="1" DT_CENTER="1" Name="OkButton" BGColor="ffffffff" TextColor="ffffffff" NewControlDepth="2" WindowSoundTemplate="TogglePhys02" TextId="CRB_OK" Text="" TooltipColor="" NormalTextColor="ffffffff" PressedTextColor="ffffffff" FlybyTextColor="ffffffff" PressedFlybyTextColor="ffffffff" DisabledTextColor="ffffffff">
+            <Event Name="ButtonSignal" Function="OnOK"/>
+        </Control>
+        <Control Class="Button" Base="CRB_UIKitSprites:btn_close" Font="Thick" ButtonType="PushButton" RadioGroup="" LAnchorPoint="1" LAnchorOffset="-29" TAnchorPoint="0" TAnchorOffset="5" RAnchorPoint="1" RAnchorOffset="3" BAnchorPoint="0" BAnchorOffset="39" DT_VCENTER="1" DT_CENTER="1" Name="CloseButton" BGColor="ffffffff" TextColor="ffffffff" NewControlDepth="2" WindowSoundTemplate="CloseWindowPhys" Text="" TextId="">
+            <Event Name="ButtonSignal" Function="OnCancel"/>
+        </Control>
+    </Form>
+</Forms>
