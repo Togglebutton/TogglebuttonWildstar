@@ -6,7 +6,7 @@
 
 ### strTemplate ###
 
-The name of the dialog style, choose form:
+The name of the dialog style, choose from:
 
 - **OneButton** - With one Blue button in the center
 - **TwoButton** - With a Green and a Red button
