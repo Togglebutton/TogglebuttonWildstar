@@ -4,7 +4,7 @@
 
 ## Arguments: ##
 
-**strTemplate**
+### strTemplate ###
 
 The name of the dialog style, choose form:
 
