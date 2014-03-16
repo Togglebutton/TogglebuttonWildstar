@@ -1,25 +1,3 @@
--- syntax
--- DialogLib:ShowDialog(strTemplate, strText, tButtonText, strMethod, tAddon)
--- Template Types
---[[
-	OneButton
-	TwoButton
-	ThreeButton
-	TextInput
-]]
---[[
-	tButtonText =	{
-		red = "Cancel",
-		blue = "Other",
-		green = "OK"
-	}
-]]
--- Method Format
---[[
-	Addon:MethodName(nButtonID, strEditBoxInput)
-	nButtonID returns: 1 = Green, 2 = Red, 3 = Blue
-]]
-
 local DialogLib = {}
 
 local tXmlTable = {
