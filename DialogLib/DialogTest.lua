@@ -1,8 +1,3 @@
------------------------------------------------------------------------------------------------
--- Client Lua Script for DialogTest
--- Copyright (c) NCsoft. All rights reserved
------------------------------------------------------------------------------------------------
- 
 require "Window"
  
 -----------------------------------------------------------------------------------------------
@@ -14,7 +9,22 @@ local DialogLib
 -----------------------------------------------------------------------------------------------
 -- Constants
 -----------------------------------------------------------------------------------------------
--- e.g. local kiExampleVariableMax = 999
+
+local ktDialogTypes = {
+	{template = "OneButton", dialogText = "This is an example One Button Dialog. This is good for a simple notification prompt.", buttons = {blue="OK"}},
+	{template = "TwoButton", dialogText = "This is an example Two Button Dialog. This is good for a standard OK - Cancel Dialog.", buttons = {red = "Cancel", blue="OK"}},
+	{template = "ThreeButton", dialogText = "This is an example of a Three Button Dialog. This is good for a Ys, No, Cancel Dialog.", buttons = {red = "Cancel", green= "Yes", blue="No"}},
+	{template = "TextInput", dialogText = "This is an example Text Input Dialog. This is good for gatherign small amounts of input from a user. Please enter some text in the box below.", buttons = {green= "OK"}},
+}
+
+local ktButtonTypes = {
+	"Green Button",
+	"Red Button",
+	"Blue Button",
+}
+
+local ksButtonPressed = "%s pressed. The return value from the Popup Dialog was %i."
+local ksTextInput = "The text input returned from the Popup Dialog was %s."
  
 -----------------------------------------------------------------------------------------------
 -- Initialization
@@ -30,7 +40,7 @@ function DialogTest:new(o)
 end
 
 function DialogTest:Init()
-	local bHasConfigureFunction = false
+	local bHasConfigureButton = false
 	local strConfigureButtonText = ""
 	local tDependencies = {
 		"DialogLib-1.0",
@@ -44,66 +54,45 @@ end
 -----------------------------------------------------------------------------------------------
 function DialogTest:OnLoad()
     -- load our form file
-	self.xmlDoc = XmlDoc.CreateFromFile("DialogTest.xml")
-	self.xmlDoc:RegisterCallback("OnDocLoaded", self)
 	DialogLib = Apollo.GetPackage("DialogLib-1.0").tPackage
-end
-
------------------------------------------------------------------------------------------------
--- DialogTest OnDocLoaded
------------------------------------------------------------------------------------------------
-function DialogTest:OnDocLoaded()
-
-	if self.xmlDoc ~= nil and self.xmlDoc:IsLoaded() then
-	    self.wndMain = Apollo.LoadForm(self.xmlDoc, "DialogTestForm", nil, self)
-		if self.wndMain == nil then
-			Apollo.AddAddonErrorText(self, "Could not load the main window for some reason.")
-			return
-		end
-		
-	    self.wndMain:Show(false, true)
-
-		-- if the xmlDoc is no longer needed, you should set it to nil
-		-- self.xmlDoc = nil
-		
-		-- Register handlers for events, slash commands and timer, etc.
-		-- e.g. Apollo.RegisterEventHandler("KeyDown", "OnKeyDown", self)
-		Apollo.RegisterSlashCommand("dt", "OnDialogTestOn", self)
-
-
-		-- Do additional Addon initialization here
-	end
+	self.wndMain = Apollo.LoadForm("DialogTest.xml", "DialogTestForm", nil, self)
+	self.wndMain:Show(false, true)
+	Apollo.RegisterSlashCommand("dialogtest", "OnDialogTestOn", self)
 end
 
 -----------------------------------------------------------------------------------------------
 -- DialogTest Functions
 -----------------------------------------------------------------------------------------------
--- Define general functions here
-
 -- on SlashCommand "/dt"
 function DialogTest:OnDialogTestOn()
 	self.wndMain:Show(true) -- show the window
 end
 
+-- Dialog Callback Method
+function DialogTest:DialogCallbackMethod(strButtonID, strInput)
+	local strText = string.format(ksButtonPressed, ktButtonTypes[strButtonID], strButtonID)
+	local strInputText = string.format(ksTextInput, strInput)
+	
+	Print(strText)
+	if strInput then
+		Print(strInputText)
+	end
+	
+end
 
 -----------------------------------------------------------------------------------------------
 -- DialogTestForm Functions
 -----------------------------------------------------------------------------------------------
-function DialogTest:OnOK()
-	DialogLib:ShowDialog("ThreeButton", "Test Text", { red = "Cancel", green = "OK", blue = "Other"}, "TestMethod", self)
+function DialogTest:OnButtonClick(wndHandler, wndControl)
+	local nButtonId = wndControl:GetContentId()
+	-- get the content ID of the button, to look up the right set of parameters in the list.
+	
+	DialogLib:ShowDialog(ktDialogTypes[nButtonId].template, ktDialogTypes[nButtonId].dialogText, ktDialogTypes[nButtonId].buttons, "DialogCallbackMethod", self)
 end
 
--- when the Cancel button is clicked
 function DialogTest:OnCancel()
 	self.wndMain:Show(false) -- hide the window
 end
 
-function DialogTest:TestMethod(strButtonID, strInput)
-	Print(strButtonID)
-	Print(strInput)
-end
------------------------------------------------------------------------------------------------
--- DialogTest Instance
------------------------------------------------------------------------------------------------
 local DialogTestInst = DialogTest:new()
 DialogTestInst:Init()
