@@ -567,7 +567,7 @@ function DialogLib:ShowDialog(strTemplate, strText, tButtonText, strMethod, tAdd
 		tInstance.wndDialog:FindChild("ButtonBlue"):SetText(tButtonText.blue)
 	end
 	tInstance.wndDialog:Show(true)
-	tInstance.wndDialog:ToFront()
+
 end
 
 function DialogLib:TriggerCallback(wndHandler, wndControl)
@@ -595,4 +595,4 @@ function DialogLib:new(o)
 end
 
 
-Apollo.RegisterPackage(DialogLib, "DialogLib-1.0", 3, {})
+Apollo.RegisterPackage(DialogLib, "DialogLib-1.0", 2, {})
