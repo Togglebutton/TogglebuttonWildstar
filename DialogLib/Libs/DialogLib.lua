@@ -577,8 +577,10 @@ function DialogLib:TriggerCallback(wndHandler, wndControl)
 	if self.wndDialog:FindChild("TextInputBox") then
 		strInput = self.wndDialog:FindChild("TextInputBox"):GetText()
 	end
-
-	self.dialogAddon[self.dialogMethod](self, strWindID, strInput)
+	
+	if self.dialogMethod then
+		self.dialogAddon[self.dialogMethod](self, strWindID, strInput)
+	end
 	self.wndDialog:Show(false)
 	self.wndDialog:Destroy()
 end
