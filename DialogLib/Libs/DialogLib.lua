@@ -1,6 +1,6 @@
 --===============================================
 --					DialogLib
---					   V1.0
+--					   V1.1
 --		Apollo Package for simple Pop Up Dialog Windows
 --			Copyright (c) 2014 Brandon Petrie
 --===============================================
