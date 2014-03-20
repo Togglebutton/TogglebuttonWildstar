@@ -1,0 +1,8 @@
+Change Log
+
+v1.0
+Initial Release
+
+v1.1
+- Protection against calling a nil callback method
+- Dialogs are not brought to the front automatically.
