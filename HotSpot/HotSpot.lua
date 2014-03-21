@@ -34,7 +34,7 @@ local tTypeDDList = {
 	"Combat Event: PVP",		
 }
 local bHasHotSpot = false
-local nSelectedHotSpot = 1
+
 
 -----------------------------------------------------------------------------------------------
 -- HotSpot Module Definition
@@ -55,7 +55,6 @@ function HotSpot:new(o)
 	--[[ -- Data Structure for Table
 		{
 			title = "Test Event Name",
-			icon = "Icon_SkillTemporary_Spell_Warrior_Smash",
 			location = {"Somewhere","Everywhere"},
 			details = "Test Details",
 			type = "Tavern",
@@ -65,7 +64,7 @@ function HotSpot:new(o)
 	]]
 		
 	self.tMyHotSpot = {}
-		
+	self.nSelectedHotSpot = 0
     return o
 end
 
@@ -82,7 +81,6 @@ function HotSpot:OnLoad()
     -- Register handlers for events, slash commands and timer, etc.
     -- e.g. Apollo.RegisterEventHandler("KeyDown", "OnKeyDown", self)
     Apollo.RegisterSlashCommand("hotspot", "OnHotSpotOn", self)
-	Apollo.RegisterTimerHandler("HS_LoadIconTimer", "OnLoadIcons", self)
 	self.chanHotSpot = ICCommLib.JoinChannel("HotSpotChannel", "OnMessRcv", self)
 end
 
@@ -112,25 +110,29 @@ end
 function HotSpot:CreateSpotClick()
 	if not self.wndCreate then
 		self.wndCreate = Apollo.LoadForm("HotSpot.xml", "CreateHotSpotWindow", nil, self)
+		self.DDMenu = self.wndCreate:FindChild("DropDownMenu")
+		self:CreateDropDown()
+		self.DDMenu:Show(false)
 		self.wndCreate:Show(true)
-		local wndIconFrame = self.wndCreate:FindChild("EventIcon")
-		self.wndIconSprite = wndIconFrame:FindChild("Icon")
 	else
 		self.wndCreate:Show(true)
 	end
 end
 
-function HotSpot:SetToolTip(nListItem)
-	Print(nListItem)
-	if nListItem then
-		local tSpotInfo = self.tEventList[nListItem]
-		self.wndTooltip = self.wndTooltip or self.wndMain:FindChild("Grid"):LoadTooltipForm("HotSpot.xml", "HotSpotTooltip", self)
-		self.wndTooltip:FindChild("Title"):SetText(tSpotInfo.title)
-		self.wndTooltip:FindChild("Loc"):SetText(string.format("%s, %s",tSpotInfo.location[1], tSpotInfo.location[2]))
-		self.wndTooltip:FindChild("Coords"):SetText(string.format("X: %s, Y: %s", self:StringRound(tSpotInfo.coords.x, 2), self:StringRound(tSpotInfo.coords.y, 2)))
-		self.wndTooltip:FindChild("Host"):SetText(tSpotInfo.host or "")
-		self.wndTooltip:FindChild("Desc"):SetText(tSpotInfo.details or "")
-		self.wndTooltip:FindChild("Icon"):SetSprite(tSpotInfo.icon)
+function HotSpot:SetToolTip()
+	
+	if self.nSelectedHotSpot >= 1 then
+		local xmlTooltip = XmlDoc.new()
+		local tSpotInfo = self.tEventList[self.nSelectedHotSpot]
+		xmlTooltip:AddLine("<T Font=\"CRB_Interface14_BO\" TextColor=\"xkcdAmber\">"..tSpotInfo.title.."</T>")
+		xmlTooltip:AddLine(string.format("<T Font=\"CRB_Interface12_BO\" TextColor=\"green\">%s, %s</T>",tSpotInfo.location[1], tSpotInfo.location[2]))
+		xmlTooltip:AddLine(string.format("<T Font=\"CRB_Interface12_BO\" TextColor=\"green\">X: %s, Y: %s</T>", self:StringRound(tSpotInfo.coords.x, 2), self:StringRound(tSpotInfo.coords.y, 2)))
+		xmlTooltip:AddLine("<T Font=\"CRB_Interface10_BO\" TextColor=\"cyan\">"..tSpotInfo.host.."</T>")
+		xmlTooltip:AddLine("<T Font=\"CRB_Interface11\" TextColor=\"white\">"..tSpotInfo.details.."</T>")
+		
+		self.wndItemList:SetTooltipDoc(xmlTooltip)
+	else
+		self.wndItemList:SetTooltipDoc(nil)
 	end
 end
 
@@ -139,8 +141,8 @@ function HotSpot:ManualTransfer()
 end
 
 function HotSpot:LocateHotSpot()
-	if self.tEventList[nSelectedHotSpot] then
-		GameLib.GetPlayerUnitByName(self.tEventList[nSelectedHotSpot or 1].host):ShowHintArrow()
+	if self.tEventList[self.nSelectedHotSpot] then
+		GameLib.GetPlayerUnitByName(self.tEventList[self.nSelectedHotSpot or 1].host):ShowHintArrow()
 	end
 end
 
@@ -149,16 +151,13 @@ end
 -----------------------------------------------------------------------------------------------
 -- populate item list
 function HotSpot:AddListItem(index, tCurr)
-	local button = "<Form Class=\"Button\" Base=\"CRB_Basekit:kitBtn_Metal_MediumGreen\" Name=\"Button\" LAnchorPoint=\"0\" TAnchorPoint=\"0\" RAnchorPoint=\"1\" TAnchorPoint=\"1\" LAnchorOffset=\"0\" TAnchorOffset=\"0\" RAnchorOffset=\"0\" BAnchorOffset=\"0\" Tooltip=\"Click!\" BGColor=\"ffffffff\" TextColor=\"ffffffff\" TooltipType=\"OnCursor\" />"
 	
 	local iCurrRow = self.wndItemList:AddRow("")
 	self.wndItemList:SetCellLuaData(iCurrRow, 1, index)
-	self.wndItemList:SetCellImage(iCurrRow, 1, tCurr.icon)
-	self.wndItemList:SetCellDoc(iCurrRow, 1, button)
-	self.wndItemList:SetCellDoc(iCurrRow, 2, "<T Font=\"CRB_InterfaceSmall\" TextColor=\"ffffffff\">"..tCurr.type.."</T>")
-	self.wndItemList:SetCellDoc(iCurrRow, 3, "<T Font=\"CRB_InterfaceSmall\" TextColor=\"ffffffff\">"..tCurr.title.."</T>")
-	self.wndItemList:SetCellDoc(iCurrRow, 4, "<T Font=\"CRB_InterfaceSmall\" TextColor=\"ffffffff\">"..string.format("%s, %s",tCurr.location[1],tCurr.location[2]).."</T>")
-	self.wndItemList:SetCellDoc(iCurrRow, 5, "<T Font=\"CRB_InterfaceSmall\" TextColor=\"ffffffff\">"..tCurr.host.."</T>")
+	self.wndItemList:SetCellText(iCurrRow, 1, tCurr.type)
+	self.wndItemList:SetCellText(iCurrRow, 2, tCurr.title)
+	self.wndItemList:SetCellText(iCurrRow, 3, string.format("%s, %s",tCurr.location[1],tCurr.location[2]))
+	self.wndItemList:SetCellText(iCurrRow, 4, tCurr.host)
 end
 
 function HotSpot:PopulateItemList()
@@ -173,10 +172,8 @@ end
 -- when a list item is selected
 function HotSpot:OnListItemSelected(wndControl, wndHandler, iRow, iCol,iCurrRow, iCurrCol)
 	--Print(iRow)
-	nSelectedHotSpot = self.wndItemList:GetCellData(iRow or iCurrRow, 1)
-	if nSelectedHotSpot then
-		self:SetToolTip(nSelectedHotSpot)
-	end
+	self.nSelectedHotSpot = iRow or self.nSelectedHotSpot
+	self:SetToolTip()
 end
 
 -----------------------------------------------------------------------------------------------
@@ -184,13 +181,11 @@ end
 -----------------------------------------------------------------------------------------------
 
 function HotSpot:OnCreateOK()
-	local strType = self.strEventType
+	local strType = self.wndCreate:FindChild("EventType"):FindChild("Button"):FindChild("Text"):GetText()
 	local strTitle = self.wndCreate:FindChild("EventTitle"):FindChild("EditBox"):GetText()
 	local strDetails = self.wndCreate:FindChild("EventDetails"):FindChild("EditBox"):GetText()
-	local strIcon = self.wndIconSprite:GetSprite("Icon")
 	local tNewHotSpot = {
 		title = strTitle,
-		icon = strIcon,
 		location = {GameLib.GetCurrentZoneMap().strName,GetCurrentZoneName()},
 		coords = GameLib.GetPlayerUnit():GetPosition(),
 		details = strDetails,
@@ -209,28 +204,20 @@ end
 function HotSpot:DestroyCreateWindow()
 	if self.wndCreate then
 		self.wndCreate:Destroy()
-		if self.DDMenu then
-			self.DDMenu:Destroy()
-			self.DDMenu = nil
-		end
-		self.wndIconSprite = nil
 		self.wndCreate = nil
 		self.strEventType = nil
 	end
 end
 
 function HotSpot:CreateDropDown()
-	self.DDMenu = Apollo.LoadForm("HotSpot.xml", "DropDownMenu", self.wndCreate, self)
 	for i,v in pairs(tTypeDDList) do
 		local wndCurr = Apollo.LoadForm("HotSpot.xml", "DDButton", self.DDMenu, self)
 		wndCurr:SetText(v)
 		wndCurr:SetData(i)
 	end
 	self.DDMenu:ArrangeChildrenVert()
-	local wndPar = self.wndCreate:FindChild("EventType")
-	local nParL, nParT, nParR, nParB = wndPar:GetAnchorOffsets()
-	local nOffL, nOffT, nOffR, nOffB = self.DDMenu:GetAnchorOffsets()
-	self.DDMenu:SetAnchorOffsets(nParL, nParB, (nParL + nOffR), (nParB + ( #tTypeDDList * 24 )) )
+	local nL, nT, nR, nB = self.DDMenu:GetAnchorOffsets()
+	self.DDMenu:SetAnchorOffsets(nL, nT, nR, (nT + ( #tTypeDDList * 30 )) )
 	self.DDMenu:ToFront()
 end
 
@@ -239,9 +226,7 @@ function HotSpot:OnDDClick()
 		self.DDMenu:Show(true)
 		self.DDMenu:ToFront()
 	elseif self.DDMenu and self.DDMenu:IsShown() == true then
-		self.DDMenu:Show(false)
-	elseif not self.DDMenu then
-		self:CreateDropDown()
+		self.DDMenu:Show(false)	
 	end
 end
 
@@ -250,91 +235,6 @@ function HotSpot:DDButtonClick(wndHandler, wndControl)
 	self.wndCreate:FindChild("EventType"):FindChild("Button"):FindChild("Text"):SetText(strEventType)
 	self.strEventType = strEventType
 	self.DDMenu:Show(false)
-end
----------------------------------------------------------------------------------------------------
--- Icon Selections (wndIcon)
----------------------------------------------------------------------------------------------------
-function HotSpot:OnIconClick(wndHandler, wndControl)
-    self:OpenIconWnd()
-end
-
-function HotSpot:OpenIconWnd()
-	if self.wndIcon == nil then
-		self.wndIcon = Apollo.LoadForm("HotSpot.xml", "SelectIcon", nil, self)
-        Apollo.CreateTimer("HS_LoadIconTimer", 0.1, false)
-		Apollo.StartTimer("HS_LoadIconTimer")
-	else
-		self.wndIcon:ToFront()
-	end
-end
-
-function HotSpot:OnLoadIcons()
-	self.wndIconList = self.wndIcon:FindChild("IconList")
-	self.wndIconList:SetFocus()
-	
-	-- create the list of icons
-	local arStrMacroIcons = MacrosLib.GetMacroIconList()
-	 
-	local wndFirstIcon = nil;
-	
-	for idx,value in pairs(arStrMacroIcons) do	
-	
-         if self.wndIcon == nil then -- in case when user quits before done loading
-            break
-         end
-	
-         local wnd = Apollo.LoadForm("HotSpot.xml", "IconItem", self.wndIconList, self)
-
-         if idx == 1 then
-             wndFirstIcon = wnd
-         end
-		 
-         wnd:SetSprite(value)
-		 
-		 self.wndIconSprite:SetSprite(value)
-		 
-         local strSelectedIconSprite = self.wndCreate:FindChild("Icon"):GetSprite()
-         if strSelectedIconSprite == value then
-            self:SelectIcon(wnd)
-         end
-		 
-	end
-	
-	if self.strSelectedIcon == nil and wndFirstIcon ~= nil then 
-        self:SelectIcon(wndFirstIcon) -- select the first icon
-    end
-		
-	self.wndIconList:ArrangeChildrenTiles()
-end
-
-function HotSpot:DestroyIconWnd()
-	if not ( self.wndIcon == nil ) then
-		self.wndIcon:Destroy()
-		self.wndIcon = nil
-		self.strSelectedIcon = nil
-	end
-end
-
-function HotSpot:OnIconOK()
-    if self.strSelectedIcon ~= nil then
-        -- assign the selected icon to the icon in edit wnd
-        self.wndIconSprite:SetSprite( self.strSelectedIcon)
-    end
-	self:DestroyIconWnd()
-end
-
-function HotSpot:OnIconCancel()
-	self:DestroyIconWnd()
-end
-
-function HotSpot:SelectIcon(wnd)
-	self.strSelectedIcon = wnd:GetSprite()
-	self.wndIconSprite:SetSprite( self.strSelectedIcon )
-
-end
-
-function HotSpot:OnIconSelect(wndHandler, wndControl)
-    self:SelectIcon(wndControl)   
 end
 
 -----------------------------------------------------------------------------------------------
