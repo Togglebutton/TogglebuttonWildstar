@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Addon Author="Togglebutton" APIVersion="7" Name="HotSpot" Description="For finding and showing Roleplay Hotspots.">
+    <Script Name="HotSpot.lua"/>
+    <Form Name="HotSpot.xml"/>
+    <Script Name="Libs\DialogLib.lua"/>
+</Addon>
