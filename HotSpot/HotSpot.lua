@@ -78,10 +78,11 @@ end
 
 
 function HotSpot:OnLoad()
-    -- Register handlers for events, slash commands and timer, etc.
-    -- e.g. Apollo.RegisterEventHandler("KeyDown", "OnKeyDown", self)
     Apollo.RegisterSlashCommand("hotspot", "OnHotSpotOn", self)
 	self.chanHotSpot = ICCommLib.JoinChannel("HotSpotChannel", "OnMessRcv", self)
+	self.wndMain = Apollo.LoadForm("HotSpot.xml", "HotSpotListWindow", nil, self)
+	self.wndItemList = self.wndMain:FindChild("Grid")
+	self.wndMain:Show(false)
 end
 
 -----------------------------------------------------------------------------------------------
@@ -89,13 +90,8 @@ end
 -----------------------------------------------------------------------------------------------
 -- on SlashCommand "/hotspot"
 function HotSpot:OnHotSpotOn(command, ...)
-	if not self.wndMain then
-		self.wndMain = Apollo.LoadForm("HotSpot.xml", "HotSpotListWindow", nil, self)
-		self.wndItemList = self.wndMain:FindChild("Grid")
-	end
-	
-	self.wndMain:Show(true) -- show the window
 	-- populate the item list
+	self.wndMain:Show(true) -- show the window
 	self:PopulateItemList()
 end
 
@@ -258,7 +254,7 @@ function HotSpot:OnMessRcv(channel, tMsg, strSender)
 	elseif tMsg.prefix == "AdoptOK" then
 		self:OnAdoptOK(tMsg)
 	end
-end
+end 
 
 -- Sends
 function HotSpot:SendReqAll()
@@ -325,7 +321,7 @@ function HotSpot:OnReqRcv(strSender)
 	end
 end
 -- Adoption
-function HotSpot:OnRcvAdopt(strSender)
+function HotSpot:OnAdoptRcv(strSender)
 	-- someone has requested adoption
 	if bHasHotSpot == false then
 		local tSpot = self:GetPlayerHotSpot(strSender)
