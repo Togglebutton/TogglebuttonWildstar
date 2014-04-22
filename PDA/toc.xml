@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Addon Author="Togglebutton" APIVersion="8" Name="PDA" Description="Personnel Data Access is an addon for Role Players to show their in character status, full name and display a datafile about their characters in the 3D game world. " Version="">
+	<Script Name="libs\RPCore.lua"/>
+    <Script Name="PDA.lua"/>
+    <Form Name="PDA.xml"/>
+</Addon>
