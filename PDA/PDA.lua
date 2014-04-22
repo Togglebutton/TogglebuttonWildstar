@@ -57,7 +57,6 @@ function PDA:Init()
 	local strConfigureButtonText = ""
 	local tDependencies = {
 		"RPCore",
-		"RCMPMessage",
 	}
     Apollo.RegisterAddon(self, bHasConfigureButton, strConfigureButtonText, tDependencies)
 end
