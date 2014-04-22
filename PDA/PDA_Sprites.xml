@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Sprites>
-    <Sprite Name="Zoi" Cycle="1">
-        <Frame Texture="PDA\textures\Zoi.tga" x0="0" x1="515" x2="515" x3="515" x4="515" x5="515" y0="0" y1="515" y2="515" y3="515" y4="515" y5="515" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
-    </Sprite>
     <AutoButton Name="RPButton" Texture="PDA\textures\RP.tga" x0="0" x1="515" x2="515" x3="515" x4="515" x5="515" y0="0" y1="515" y2="515" y3="515" y4="515" y5="515" Stretchy="1" StateBits="31" Direction="Across"/>
 </Sprites>

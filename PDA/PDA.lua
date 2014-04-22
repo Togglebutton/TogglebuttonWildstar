@@ -124,7 +124,7 @@ function PDA:OnPDAOn()
 	self.wndMain:Show(true) -- show the window
 	self:OnStatusClick()
 end
-
+--[[
 function PDA:OnSave(eLevel)
 	if (eLevel ~= GameLib.CodeEnumAddonSaveLevel.Character) then return nil end 
 	return { rpCore = RPCore:CacheAsTable() }
@@ -136,7 +136,7 @@ function PDA:OnRestore(eLevel, tData)
 		self.restored = true
 	end
 end
-
+]]
 function PDA:OnUnitCreated(unit)
 	local rpVersion, rpAddons = RPCore:QueryVersion(unit:GetName())
 	--if (unit:IsACharacter() and not unit:IsThePlayer() and rpVersion ~= nil) then
@@ -195,129 +195,94 @@ end
 
 function PDA:CreateCharacterSheet(wndHandler, wndControl)
 	local unit = wndControl:GetParent():GetUnit()
-	
+		
 	if not self.wndCS then
 		self.wndCS = Apollo.LoadForm(self.xmlDoc, "CharSheetForm", nil, self)
 		self.wndCS:Show(false)
 	end
 	
-	local unitName = unit:GetName() 
-	local rpVersion, rpAddons = RPCore:QueryVersion(unitName)
-	local rpFullname = nil
-	local rpTitle = nil
-	local rpShortDesc = nil
-	local rpStateString = nil
-	local rpHeight = nil
-	local rpWeight = nil
-	local rpAge = nil
-	local rpRace = nil
-	local rpGender = nil
-	local rpJob = nil
+	local unitName = unit:GetName()
+	local rpVersion, rpAddons = RPCore:QueryVersion(unit:GetName())
+	local rpFullname, rpTitle, rpShortDesc, rpStateString, rpHeight, rpWeight, rpAge, rpRace, rpGender, rpJob
 	
-	local tCSString = {"Test"}
+	local tCSString = {}
+	
+	local xmlCS = XmlDoc.new()
 	
 	if (rpVersion ~= nil) then
-		if unit:GetId() == GameLib.GetPlayerUnit():GetId() then
-			rpFullname = RPCore:GetLocalTrait("fullname") or unitName
-			Print(rpFullName)
-			rpState = RPCore:GetLocalTrait("rpflag")
-			rpShortBlurb = RPCore:GetLocalTrait("shortdesc")
-			rpTitle = RPCore:GetLocalTrait("title")
-			rpHeight = RPCore:GetLocalTrait("height")
-			rpWeight = RPCore:GetLocalTrait("weight")
-			rpAge = RPCore:GetLocalTrait("age")
-			local nRaceID = GameLib.GetPlayerUnit():GetRaceId()
-			rpRace = GameLib.CodeEnumRace[nRaceID]
-			rpGender = GameLib.GetPlayerUnit():GetGender()
-			rpJob = RPCore:GetLocalTrait("job") or GameLib.CodeEnumClass[unit:GetClassId()]
-		else
-			rpFullname = RPCore:GetTrait(unitName,"fullname") or unitName
-			rpTitle = RPCore:GetTrait(unitName,"title")
-			rpShortDesc = RPCore:GetTrait(unitName,"shortdesc")
-			rpHeight = RPCore:GetTrait(unitName,"height")
-			rpWeight = RPCore:GetTrait(unitName,"weight")
-			rpAge = RPCore:GetTrait(unitName,"age")
-			rpRace = GameLib.CodeEnumRace[unit:GetRaceId()]
-			rpGender = unit:GetGender()
-			rpJob = RPCore:GetTrait(unitName,"job") or GameLib.CodeEnumClass[unit:GetClassId()]
-		end
-		Print(rpFullName)
-		--if rpFullname ~= nil then tCSString:insert(string.format(tostring(ktCSstrings.Name), tostring(rpFullName)).."<BR />") end
-		--if (rpTitle ~= nil) then tCSString:insert(string.format(tostring(ktCSstrings.Title), rpTitle).."<BR />") end
-		--if (rpRace ~= nil) then tCSString:insert(string.format(tostring(ktCSstrings.Species), rpRace).."<BR / >") end
-		--if (rpGender ~= nil) then tCSString:insert(string.format(tostring(ktCSstrings.Gender), rpGender).."<BR />") end
-		--if (rpAge ~= nil) then tCSString:insert(string.format(tostring(ktCSstrings.Age), rpAge).."<BR />") end
-		--if (rpHeight ~= nil) then tCSString:insert(string.format(tostring(ktCSstrings.Height), rpHeight).."<BR />") end
-		--if (rpWeight ~= nil) then tCSString:insert(string.format(tostring(ktCSstrings.Weight), rpWeight).."<BR />") end
-		--if (rpTitle ~= nil) then tCSString:insert(string.format(tostring(ktCSstrings.Title), rpTitle).."<BR />") end
-		--if (rpJob ~= nil) then tCSString:insert(string.format(tostring(ktCSstrings.Job), rpJob).."<BR />") end
-		--if (rpShortDesc ~= nil) then tCSString:insert(string.format(tostring(ktCSstrings.Description), rpShortDesc)) end
+		rpFullname = RPCore:GetTrait(unitName,"fullname") or unitName
+		rpTitle = RPCore:FetchTrait(unitName,"title")
+		rpShortDesc = RPCore:GetTrait(unitName,"shortdesc")
+		rpHeight = RPCore:GetTrait(unitName,"height")
+		rpWeight = RPCore:GetTrait(unitName,"weight")
+		rpAge = RPCore:GetTrait(unitName,"age")
+		rpRace = GameLib.CodeEnumRace[unit:GetRaceId()]
+		rpGender = unit:GetGender()
+		rpJob = RPCore:GetTrait(unitName,"job") or GameLib.CodeEnumClass[unit:GetClassId()]
+	
+		if (rpFullname ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Name, rpFullname)) end
+		if (rpTitle ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Title, rpTitle)) end
+		if (rpRace ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Species, rpRace)) end
+		if (rpGender ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Gender, rpGender)) end
+		if (rpAge ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Age, rpAge)) end
+		if (rpHeight ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Height, rpHeight)) end
+		if (rpWeight ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Weight, rpWeight)) end
+		if (rpTitle ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Title, rpTitle)) end
+		if (rpJob ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Job, rpJob)) end
+		if (rpShortDesc ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Description, rpShortDesc)) end
 	end
-	self.wndCS:FindChild("wnd_CharSheet"):SetText(table.concat(tCSString))
+	self.wndCS:FindChild("wnd_CharSheet"):SetDoc(xmlCS)
+	self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(unit)
 	self.wndCS:Show(true)
 	
 end
 
 function PDA:DrawNameplate(tNameplate)
-	--[[local bShowNameplate = self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
+	local bShowNameplate = self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
 
 	if not bShowNameplate then
 		self:UnattachNameplateWindow(tNameplate); return false;
-	end]]
+	end
 
 	self:CreateNameplateWindow(tNameplate)
 
 	-- Nameplate should be viewable? --and not tNameplate.bOccluded --and not self.bBlinded -- No thanks.
-	--bShowNameplate = bShowNameplate and tNameplate.bOnScreen 
+	bShowNameplate = bShowNameplate and tNameplate.bOnScreen 
 
 	-- Check Occlusion setting.				
-	--if self.setEnableOcclusion and tNameplate.bOccluded then bShowNameplate = false end
+	if self.setEnableOcclusion and tNameplate.bOccluded then bShowNameplate = false end
 
 	-- Show Nameplate?
-	--if self.setNeverShow or not bShowNameplate then
-	--	if tNameplate.wndNameplate ~= nil then tNameplate.wndNameplate:Show(false) end
-	--	return false
-	--end
+	if self.setNeverShow or not bShowNameplate then
+		if tNameplate.wndNameplate ~= nil then tNameplate.wndNameplate:Show(false) end
+		return false
+	end
 
 	if tNameplate.unitOwner == nil then return false end
 	local unitOwner = tNameplate.unitOwner
 	local namePlate = tNameplate.wndNameplate
 	
 	local wndName = namePlate:FindChild("wnd_Name")
-	local rpFullname = nil
-	local rpTitle = nil
-	local rpStatus = nil
-	local strNameString
+	local rpFullname, rpTitle, rpStatus, strNameString
 	
-	rpFullname = RPCore:GetTrait(tNameplate.unitOwner:GetName(),"fullname") or tNameplate.unitOwner:GetName()
-	rpTitle = RPCore:GetTrait(tNameplate.unitOwner:GetName(),"title")
-	rpStatus = RPCore:GetTrait(tNameplate.unitOwner:GetName(), "rpflag")
+	rpFullname = RPCore:GetTrait(unitOwner:GetName(),"fullname") or unitOwner:GetName()
+	rpTitle = RPCore:FetchTrait(unitOwner:GetName(),"title")
+	rpStatus = RPCore:GetTrait(unitOwner:GetName(), "rpflag")
 	
 	local xmlNamePlate = XmlDoc:new()
 	if (rpFullname ~= nil) then xmlNamePlate:AddLine(rpFullname, "UI_TextHoloTitle", "CRB_Interface12_BO", "Center")  end
 	if (rpTitle ~= nil) then xmlNamePlate:AddLine(rpTitle, "UI_TextHoloBodyHighlight", "CRB_Interface8","Center") end
 	wndName:SetDoc(xmlNamePlate)
 	if rpStatus ~= nil then tNameplate.wndNameplate:FindChild("btn_RP"):SetBGColor(ktColors[(rpStatus + 1)]) end
-	Print(rpStatus)
+
 	namePlate:Show(true)
 
 	return bShowNameplate
 end
 
 function PDA:OnFrame()
-	-- Restore Settings.
-	--if self.restored == false then self:OptionsChanged(); self.restored = true; end
-	--[[if not self.bInitialLoadAllClear then
-		for idx, tNameplate in pairs(self.arDisplayedNameplates) do
-			if tNameplate.wndNameplate ~= nil then
-				tNameplate.wndNameplate:Show(false)
-			end
-		end
-		return
-	end]]
-	
 	for idx, tNameplate in pairs(self.arUnit2Nameplate) do
-		--local bShowNameplate = self:DrawNameplate(tNameplate)
+		local bShowNameplate = self:DrawNameplate(tNameplate)
 	end
 end
 
@@ -360,18 +325,6 @@ function PDA:CheckDrawDistance(tNameplate)
 	bInRange = nDistance < (self.setDrawDistance * self.setDrawDistance ) -- squaring for quick maths
 	return bInRange
 
-end
-
-function PDA:Show(myWindow, myBool)
-	myWindow:Show(myBool)
-	--[[
-	if not myWindow or myWindow == nil then return end
-	if myWindow:IsShown() == false and myBool == true then
-		myWindow:Show(true)
-	elseif myWindow:IsShown() == true and myBool == false then
-		myWindow:Show(false)
-	end
-	]]--
 end
 
 -----------------------------------------------------------------------------------------------
