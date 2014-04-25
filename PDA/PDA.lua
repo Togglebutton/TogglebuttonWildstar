@@ -81,7 +81,7 @@ function PDA:OnLoad()
 	
 	self.xmlDoc = XmlDoc.CreateFromFile("PDA.xml")	
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "PDAEditForm", nil, self)
-	self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
+	--self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
 	
 	Apollo.LoadSprites("PDA_Sprites.xml")
 	
@@ -101,7 +101,7 @@ end
 -- on SlashCommand "/pda"
 function PDA:OnPDAOn()
 	self.wndMain:Show(true) -- show the window
-	self.wndMain:FindChild("wnd_Controls:wnd_StatusDD"):Show(false)
+	self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD"):Show(false)
 end
 
 function PDA:OnEditShow()
@@ -127,12 +127,13 @@ function PDA:OnEditShow()
 	if string.len(tostring(rpWeight)) < 1 then self.wndMain:FindChild("input_s_Weight"):SetText(rpWeight) end
 
 	for i = 1, 3 do 
-		local wndButton = self.wndMain:FindChild("wnd_Controls:wnd_StatusDD:input_b_RoleplayToggle" .. i)
+		local wndButton = self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD:input_b_RoleplayToggle" .. i)
 		wndButton:SetCheck(RPCore:HasBitFlag(rpState,i))
 	end
 	
 	self.wndMain:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(GameLib.GetPlayerUnit())
 end
+
 --[[
 function PDA:OnConfigure()
 	self.wndOptions:Show(true)
@@ -155,7 +156,7 @@ end
 -- PDA Nameplate Functions
 -----------------------------------------------------------------------------------------------
 function PDA:OnUnitCreated(unit)
-	if not unit:ShouldShowNamePlate() 
+	if not unit:ShouldShowNamePlate()  then
 		return
 	end
 	
@@ -171,7 +172,7 @@ function PDA:OnUnitCreated(unit)
 			return
 		end
 		
-		local wnd = tNameplate.wndNameplate = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
+		local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
 		wnd:Show(false)
 		wnd:SetUnit(unitNew, 1)
 		Print("Creating Nameplate Window.")
@@ -193,7 +194,7 @@ function PDA:OnUnitCreated(unit)
 	end
 end 
 
-function :OnUnitDestroyed(unitOwner)
+function PDA:OnUnitDestroyed(unitOwner)
 	local idUnit = unitOwner:GetId()
 	if self.arUnit2Nameplate[idUnit] == nil then
 		return
@@ -460,7 +461,7 @@ function PDA:OnOptionsOK()
 		if not self.tPDAOptions then
 			self.tPDAOptions = {}
 		else
-			for i,v in pairs(self.tPDAOptions) then
+			for i,v in pairs(self.tPDAOptions) do
 				self.tPDAOptions[i] = nil
 			end
 		end
