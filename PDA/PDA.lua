@@ -32,6 +32,17 @@ local ktCSColors = {
 	strEntryColor = "UI_TextHoloTitle",
 }
 
+local karRaceToString =
+{
+	[GameLib.CodeEnumRace.Human] 	= Apollo.GetString("RaceHuman"),
+	[GameLib.CodeEnumRace.Granok] 	= Apollo.GetString("RaceGranok"),
+	[GameLib.CodeEnumRace.Aurin] 	= Apollo.GetString("RaceAurin"),
+	[GameLib.CodeEnumRace.Draken] 	= Apollo.GetString("RaceDraken"),
+	[GameLib.CodeEnumRace.Mechari] 	= Apollo.GetString("RaceMechari"),
+	[GameLib.CodeEnumRace.Chua] 	= Apollo.GetString("RaceChua"),
+	[GameLib.CodeEnumRace.Mordesh] 	= Apollo.GetString("CRB_Mordesh"),
+}
+
 local ktCSstrings = {
 	Name = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Name: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
 	Species = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Species: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
@@ -44,9 +55,9 @@ local ktCSstrings = {
 	Description = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Description: </T><BR/><P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P>",
 }
 local enumGender = {
-	"Male",
-	"Female",
-	"Unknown"
+	[0] = Apollo.GetString("CRB_Male"),
+	[1] = Apollo.GetString("CRB_Female"),
+	[2] = Apollo.GetString("CRB_UnknownType"),
 }
 -----------------------------------------------------------------------------------------------
 -- Initialization
@@ -112,19 +123,19 @@ function PDA:OnEditShow()
 	local rpHeight = RPCore:GetLocalTrait("height")
 	local rpWeight = RPCore:GetLocalTrait("weight")
 	local rpAge = RPCore:GetLocalTrait("age")
-	local rpRace = GameLib.CodeEnumRace[GameLib.GetPlayerUnit():GetRaceId()]
+	local rpRace = karRaceToString[GameLib.GetPlayerUnit():GetRaceId()]
 	local rpGender = enumGender[GameLib.GetPlayerUnit():GetGender()]
 	local rpJob = RPCore:GetLocalTrait("job")
 	
 	self.wndMain:FindChild("input_s_Name"):SetText(rpFullname)
-	if string.len(tostring(rpTitle)) < 1 then self.wndMain:FindChild("input_s_Title"):SetText(rpTitle) end
-	if string.len(tostring(rpShortBlurb)) < 1 then self.wndMain:FindChild("input_s_Description"):SetText(rpShortBlurb) end
-	if string.len(tostring(rpJob)) < 1 then self.wndMain:FindChild("input_s_Job"):SetText(rpJob) end
-	if string.len(tostring(rpRace)) < 1 then self.wndMain:FindChild("input_s_Race"):SetText(rpRace) end
-	if string.len(tostring(rpGender)) < 1 then self.wndMain:FindChild("input_s_Gender"):SetText(rpGender) end
-	if string.len(tostring(rpAge)) < 1 then self.wndMain:FindChild("input_s_Age"):SetText(rpAge) end
-	if string.len(tostring(rpHeight)) < 1 then self.wndMain:FindChild("input_s_Height"):SetText(rpHeight) end
-	if string.len(tostring(rpWeight)) < 1 then self.wndMain:FindChild("input_s_Weight"):SetText(rpWeight) end
+	if rpTitle and string.len(tostring(rpTitle)) > 1 then self.wndMain:FindChild("input_s_Title"):SetText(rpTitle) end
+	if rpShortBlurb and string.len(tostring(rpShortBlurb)) > 1 then self.wndMain:FindChild("input_s_Description"):SetText(rpShortBlurb) end
+	if rpJob and string.len(tostring(rpJob)) > 1 then self.wndMain:FindChild("input_s_Job"):SetText(rpJob) end
+	if rpRace and string.len(tostring(rpRace)) > 1 then self.wndMain:FindChild("input_s_Race"):SetText(rpRace) end
+	if rpGender and string.len(tostring(rpGender)) > 1 then self.wndMain:FindChild("input_s_Gender"):SetText(rpGender) end
+	if rpAge and string.len(tostring(rpAge)) > 1 then self.wndMain:FindChild("input_s_Age"):SetText(rpAge) end
+	if rpHeight and string.len(tostring(rpHeight)) > 1 then self.wndMain:FindChild("input_s_Height"):SetText(rpHeight) end
+	if rpWeight and string.len(tostring(rpWeight)) > 1 then self.wndMain:FindChild("input_s_Weight"):SetText(rpWeight) end
 
 	for i = 1, 3 do 
 		local wndButton = self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD:input_b_RoleplayToggle" .. i)
@@ -155,17 +166,13 @@ end
 -----------------------------------------------------------------------------------------------
 -- PDA Nameplate Functions
 -----------------------------------------------------------------------------------------------
-function PDA:OnUnitCreated(unit)
-	if not unit:ShouldShowNamePlate()  then
+function PDA:OnUnitCreated(unitNew)
+	if not unitNew:ShouldShowNamePlate()  then
 		return
 	end
 	
-	local rpVersion, rpAddons = RPCore:QueryVersion(unit:GetName())
-	if (unit:IsACharacter() and not unit:IsThePlayer() and rpVersion ~= nil) then
-		OnUnitCreated(unitNew) -- build main options here
-		if not unitNew:ShouldShowNamePlate() then
-			return
-		end
+	local rpVersion, rpAddons = RPCore:QueryVersion(unitNew:GetName())
+	if (unitNew:IsACharacter() and not unitNew:IsThePlayer() and rpVersion ~= nil) then
 
 		local idUnit = unitNew:GetId()
 		if self.arUnit2Nameplate[idUnit] ~= nil then
@@ -365,7 +372,7 @@ function PDA:DrawCharacterSheet(unitName)
 	rpHeight = RPCore:GetTrait(unitName,"height")
 	rpWeight = RPCore:GetTrait(unitName,"weight")
 	rpAge = RPCore:GetTrait(unitName,"age")
-	rpRace = GameLib.CodeEnumRace[unit:GetRaceId()]
+	rpRace = karRaceToString[unit:GetRaceId()]
 	rpGender = enumGender[unit:GetGender()]
 	rpJob = RPCore:GetTrait(unitName,"job") or GameLib.CodeEnumClass[unit:GetClassId()]
 
@@ -424,12 +431,12 @@ function PDA:OnOK()
 	
 	RPCore:SetLocalTrait("fullname",strFullname)
 	RPCore:SetLocalTrait("rpflag",rpState)
-	if string.len(tostring(strCharTitle)) < 1 then RPCore:SetLocalTrait("title",strCharTitle) end
-	if string.len(tostring(strBlurb)) < 1 then RPCore:SetLocalTrait("shortdesc", strBlurb) end
-	if string.len(tostring(strHeight)) < 1 then RPCore:SetLocalTrait("height", strHeight) end
-	if string.len(tostring(strWeight)) < 1 then RPCore:SetLocalTrait("weight", strWeight) end
-	if string.len(tostring(strAge)) < 1 then RPCore:SetLocalTrait("age", strAge) end
-	if string.len(tostring(strJob)) < 1 then RPCore:SetLocalTrait("job", strJob) end
+	if string.len(tostring(strCharTitle)) > 1 then RPCore:SetLocalTrait("title",strCharTitle) else RPCore:SetLocalTrait("title",nil) end
+	if string.len(tostring(strBlurb)) > 1 then RPCore:SetLocalTrait("shortdesc", strBlurb) else RPCore:SetLocalTrait("shortdesc", nil) end
+	if string.len(tostring(strHeight)) > 1 then RPCore:SetLocalTrait("height", strHeight) else RPCore:SetLocalTrait("height", nil) end
+	if string.len(tostring(strWeight)) > 1 then RPCore:SetLocalTrait("weight", strWeight) else RPCore:SetLocalTrait("weight", nil) end
+	if string.len(tostring(strAge)) > 1 then RPCore:SetLocalTrait("age", strAge) else RPCore:SetLocalTrait("age", nil) end
+	if string.len(tostring(strJob)) > 1 then RPCore:SetLocalTrait("job", strJob) else RPCore:SetLocalTrait("job", nil) end
 	
 	--self:DrawNameplate(self.arUnit2Nameplate[GameLib.GetPlayerUnit():GetId()])
 	
