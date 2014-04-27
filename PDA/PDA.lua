@@ -71,7 +71,7 @@ function PDA:new(o)
 	
 	o.arUnit2Nameplate = {}
 	o.arWnd2Nameplate = {}
-	o.nMaxRange = 70.0
+	o.nMaxRange = 400
 	o.bShowMyNameplate = true
     return o
 end
@@ -173,51 +173,52 @@ end
 -- PDA Nameplate Functions
 -----------------------------------------------------------------------------------------------
 function PDA:OnUnitCreated(unitNew)
-	if not unitNew:ShouldShowNamePlate()  then
-		return
-	end
 	
-	local rpVersion, rpAddons = RPCore:QueryVersion(unitNew:GetName())
-	if (unitNew:IsACharacter() and rpVersion ~= nil) then -- not unitNew:IsThePlayer() and 
-		--Print("RPCore enabled Unit found.")
-		local idUnit = unitNew:GetId()
-		if self.arUnit2Nameplate[idUnit] ~= nil then
-			return
+	if unitNew:IsACharacter() then
+		local rpVersion, rpAddons = RPCore:QueryVersion(unitNew:GetName())
+		if rpVersion ~= nil then
+			Print("RPCore enabled Unit found.")
+			local idUnit = unitNew:GetId()
+			if self.arUnit2Nameplate[idUnit] ~= nil then
+				return
+			end
+			
+			local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
+			
+			wnd:SetUnit(unitNew, 1)
+			wnd:Show(true)
+			Print("Creating Nameplate Window.")
+			local tNameplate =
+			{
+				unitOwner 		= unitNew,
+				idUnit 			= unitNew:GetId(),
+				unitName		= unitNew:GetName(),
+				wndNameplate	= wnd,
+				bOnScreen 		= wnd:IsOnScreen(),
+				bOccluded 		= wnd:IsOccluded(),
+				bInCombat		= false,
+				eDisposition	= unitNew:GetDispositionTo(GameLib.GetPlayerUnit()),
+			}
+			
+			self.arUnit2Nameplate[idUnit] = tNameplate
+			self.arWnd2Nameplate[wnd:GetId()] = tNameplate
 		end
-		
-		local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
-		wnd:Show(false)
-		wnd:SetUnit(unitNew, 1)
-		--Print("Creating Nameplate Window.")
-		local tNameplate =
-		{
-			unitOwner 		= unitNew,
-			idUnit 			= unitNew:GetId(),
-			unitName		= unitNew:GetName(),
-			wndNameplate	= wnd,
-			bOnScreen 		= wnd:IsOnScreen(),
-			bOccluded 		= wnd:IsOccluded(),
-			bInCombat		= false,
-			eDisposition	= unitNew:GetDispositionTo(GameLib.GetPlayerUnit()),
-		}
-		
-		self.arUnit2Nameplate[idUnit] = tNameplate
-		self.arWnd2Nameplate[wnd:GetId()] = tNameplate
-
 	end
 end 
 
 function PDA:OnUnitDestroyed(unitOwner)
-	local idUnit = unitOwner:GetId()
-	if self.arUnit2Nameplate[idUnit] == nil then
-		return
+	if unitOwner:IsACharacter() then
+		local idUnit = unitOwner:GetId()
+		if self.arUnit2Nameplate[idUnit] == nil then
+			return
+		end
+		
+		local wndNameplate = self.arUnit2Nameplate[idUnit].wndNameplate
+		
+		self.arWnd2Nameplate[wndNameplate:GetId()] = nil
+		wndNameplate:Destroy()
+		self.arUnit2Nameplate[idUnit] = nil
 	end
-	
-	local wndNameplate = self.arUnit2Nameplate[idUnit].wndNameplate
-	
-	self.arWnd2Nameplate[wndNameplate:GetId()] = nil
-	wndNameplate:Destroy()
-	self.arUnit2Nameplate[idUnit] = nil
 end
 
 function PDA:OnFrame()
@@ -257,7 +258,7 @@ end
 function PDA:FastDrawNameplate(tNameplate)
 	local wndNameplate = tNameplate.wndNameplate
 
-	local bShowNameplate = true --self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
+	local bShowNameplate = self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
 	wndNameplate:Show(bShowNameplate)
 	if not bShowNameplate then
 		return
@@ -269,30 +270,18 @@ function PDA:HelperVerifyVisibilityOptions(tNameplate)
 	local unitPlayer = GameLib.GetPlayerUnit()
 	local unitOwner = tNameplate.unitOwner
 	local eDisposition = tNameplate.eDisposition
-
-	local bHiddenUnit = not unitOwner:ShouldShowNamePlate() or unitOwner:IsDead()
-	
-	if bHiddenUnit then
-		return false
-	end
-	
+	local bShowNameplate
+		
 	if (self.bUseOcclusion and tNameplate.bOccluded) or not tNameplate.bOnScreen then
 		return false
 	end
 
-	local bShowNameplate = false
+	local bShowNameplate = true
 
 	if self.bShowDispositionFriendlyPlayer and eDisposition == Unit.CodeEnumDisposition.Friendly and unitOwner:GetType() == "Player" then
 		bShowNameplate = true
 	end
 	
-	if unitPlayer == unitOwner then
-		bShowNameplate = true
-	end
-
-	local tActivation = unitOwner:GetActivationState()
-
-		
 	if unitOwner:IsThePlayer() then
 		if self.bShowMyNameplate and not unitOwner:IsDead() then
 			bShowNameplate = true
@@ -522,6 +511,17 @@ end
 
 function PDA:OnCustomCheck()
 	self.wndOptions:FindChild("group_NameplateColors:group_CustomColors"):Show(true)
+end
+
+---------------------------------------------------------------------------------------------------
+-- PDAEditForm Functions
+---------------------------------------------------------------------------------------------------
+
+function PDA:OnDecriptionBoxChanged( wndHandler, wndControl, strText )
+	local nCharacterCount = string.len(wndControl:GetText())
+	local wndCounter = wndControl:FindChild("wnd_Counter")
+	
+	wndCounter:SetText(tostring(250 - nCharacterCount))
 end
 
 -----------------------------------------------------------------------------------------------
