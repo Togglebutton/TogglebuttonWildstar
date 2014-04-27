@@ -9,8 +9,8 @@ require "GameLib"
 -- PDA Module Definition
 -----------------------------------------------------------------------------------------------
 local PDA = {} 
-local RPCore
- 
+local RPCore = _G["GeminiPackages"]:GetPackage("RPCore-1.1")
+local knTargetRange = 40000
 -----------------------------------------------------------------------------------------------
 -- Constants
 -----------------------------------------------------------------------------------------------
@@ -71,15 +71,16 @@ function PDA:new(o)
 	
 	o.arUnit2Nameplate = {}
 	o.arWnd2Nameplate = {}
-
+	o.nMaxRange = 70.0
+	o.bShowMyNameplate = true
     return o
 end
 
 function PDA:Init()
-	local bHasConfigureButton = true
-	local strConfigureButtonText = "PDA"
+	--local bHasConfigureButton = true
+	--local strConfigureButtonText = "PDA"
 	local tDependencies = {
-		"RPCore",
+	--	"RPCore",
 	}
     Apollo.RegisterAddon(self, bHasConfigureButton, strConfigureButtonText, tDependencies)
 end
@@ -88,10 +89,15 @@ end
 -- PDA OnLoad
 -----------------------------------------------------------------------------------------------
 function PDA:OnLoad()
-	RPCore = Apollo.GetPackage("RPCore").tPackage
-	
-	self.xmlDoc = XmlDoc.CreateFromFile("PDA.xml")	
+	self.xmlDoc = XmlDoc.CreateFromFile("PDA.xml")
+	self.xmlDoc:RegisterCallback("OnDocumentReady", self)
+end
+
+function PDA:OnDocumentReady()
+
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "PDAEditForm", nil, self)
+	self.wndMain:Show(false)
+	
 	--self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
 	
 	Apollo.LoadSprites("PDA_Sprites.xml")
@@ -137,7 +143,7 @@ function PDA:OnEditShow()
 	if rpHeight and string.len(tostring(rpHeight)) > 1 then self.wndMain:FindChild("input_s_Height"):SetText(rpHeight) end
 	if rpWeight and string.len(tostring(rpWeight)) > 1 then self.wndMain:FindChild("input_s_Weight"):SetText(rpWeight) end
 
-	for i = 1, 3 do 
+	for i = 1, 3 do
 		local wndButton = self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD:input_b_RoleplayToggle" .. i)
 		wndButton:SetCheck(RPCore:HasBitFlag(rpState,i))
 	end
@@ -172,8 +178,8 @@ function PDA:OnUnitCreated(unitNew)
 	end
 	
 	local rpVersion, rpAddons = RPCore:QueryVersion(unitNew:GetName())
-	if (unitNew:IsACharacter() and not unitNew:IsThePlayer() and rpVersion ~= nil) then
-
+	if (unitNew:IsACharacter() and rpVersion ~= nil) then -- not unitNew:IsThePlayer() and 
+		--Print("RPCore enabled Unit found.")
 		local idUnit = unitNew:GetId()
 		if self.arUnit2Nameplate[idUnit] ~= nil then
 			return
@@ -182,7 +188,7 @@ function PDA:OnUnitCreated(unitNew)
 		local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
 		wnd:Show(false)
 		wnd:SetUnit(unitNew, 1)
-		Print("Creating Nameplate Window.")
+		--Print("Creating Nameplate Window.")
 		local tNameplate =
 		{
 			unitOwner 		= unitNew,
@@ -238,11 +244,11 @@ function PDA:DrawNameplate(tNameplate)
 
 	tNameplate.eDisposition = unitOwner:GetDispositionTo(unitPlayer)
 	
-	if unitOwner:IsMounted() and wndNameplate:GetUnit() == unitOwner then
+	--[[if unitOwner:IsMounted() and wndNameplate:GetUnit() == unitOwner then
 		wndNameplate:SetUnit(unitOwner:GetUnitMount(), 1)
 	elseif not unitOwner:IsMounted() and wndNameplate:GetUnit() ~= unitOwner then
 		wndNameplate:SetUnit(unitOwner, 1)
-	end
+	end]]
 	
 	self:DrawRPNamePlate(tNameplate)
 	
@@ -251,7 +257,7 @@ end
 function PDA:FastDrawNameplate(tNameplate)
 	local wndNameplate = tNameplate.wndNameplate
 
-	local bShowNameplate = self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
+	local bShowNameplate = true --self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
 	wndNameplate:Show(bShowNameplate)
 	if not bShowNameplate then
 		return
@@ -265,7 +271,8 @@ function PDA:HelperVerifyVisibilityOptions(tNameplate)
 	local eDisposition = tNameplate.eDisposition
 
 	local bHiddenUnit = not unitOwner:ShouldShowNamePlate() or unitOwner:IsDead()
-	if bHiddenUnit and not tNameplate.bIsTarget then
+	
+	if bHiddenUnit then
 		return false
 	end
 	
@@ -278,13 +285,14 @@ function PDA:HelperVerifyVisibilityOptions(tNameplate)
 	if self.bShowDispositionFriendlyPlayer and eDisposition == Unit.CodeEnumDisposition.Friendly and unitOwner:GetType() == "Player" then
 		bShowNameplate = true
 	end
+	
+	if unitPlayer == unitOwner then
+		bShowNameplate = true
+	end
 
 	local tActivation = unitOwner:GetActivationState()
 
-	if bShowNameplate then
-		bShowNameplate = not (self.bPlayerInCombat and self.bHideInCombat)
-	end
-	
+		
 	if unitOwner:IsThePlayer() then
 		if self.bShowMyNameplate and not unitOwner:IsDead() then
 			bShowNameplate = true
@@ -293,7 +301,7 @@ function PDA:HelperVerifyVisibilityOptions(tNameplate)
 		end
 	end
 
-	return bShowNameplate or tNameplate.bIsTarget
+	return bShowNameplate
 end
 
 function PDA:CheckDrawDistance(tNameplate)
@@ -302,6 +310,8 @@ function PDA:CheckDrawDistance(tNameplate)
 	if not unitOwner then
 	    return false
 	end
+	
+	if unitOwner:IsThePlayer() == true then return true end
 
 	local unitPlayer = GameLib.GetPlayerUnit()
 
@@ -325,6 +335,7 @@ function PDA:CheckDrawDistance(tNameplate)
 		bInRange = nDistance < (self.nMaxRange * self.nMaxRange) -- squaring for quick maths
 		return bInRange
 	end
+	
 end
 
 function PDA:DrawRPNamePlate(tNameplate)
@@ -332,9 +343,10 @@ function PDA:DrawRPNamePlate(tNameplate)
 	local rpFullname, rpTitle, rpStatus, strNameString
 	local unitName = tNameplate.unitName
 	local xmlNamePlate = XmlDoc:new()
-	local wndName = namePlate:FindChild("wnd_Name")
+	local wndNameplate = tNameplate.wndNameplate
+	local wndName = wndNameplate:FindChild("wnd_Name")
 	
-	if (self.tPDAOptions.tRPColors) and (self.tPDAOptions.tCSColors) then
+	if self.tPDAOptions and self.tPDAOptions.tRPColors and self.tPDAOptions.tCSColors then
 		tRPColors = self.tPDAOptions.tRPColors
 		tCSColors = self.tPDAOptions.tCSColors
 	else
@@ -349,7 +361,7 @@ function PDA:DrawRPNamePlate(tNameplate)
 	if (rpFullname ~= nil) then xmlNamePlate:AddLine(rpFullname, tCSColors.strEntryColor, "CRB_Interface12_BO", "Center")  end
 	if (rpTitle ~= nil) then xmlNamePlate:AddLine(rpTitle, tCSColors.strLabelColor, "CRB_Interface8","Center") end
 	wndName:SetDoc(xmlNamePlate)
-	if rpStatus ~= nil then tNameplate.wndNameplate:FindChild("btn_RP"):SetBGColor(tRPColors[(rpStatus + 1)]) end
+	if rpStatus ~= nil then wndNameplate:FindChild("btn_RP"):SetBGColor(tRPColors[(rpStatus + 1)]) end
 end
 
 -----------------------------------------------------------------------------------------------
@@ -359,8 +371,9 @@ function PDA:DrawCharacterSheet(unitName)
 	local tCSColors
 	local rpFullname, rpTitle, rpShortDesc, rpStateString, rpHeight, rpWeight, rpAge, rpRace, rpGender, rpJob
 	local xmlCS = XmlDoc.new()
+	local unit = GameLib.GetPlayerUnitByName(unitName)
 	
-	if (self.tPDAOptions.tCSColors) then
+	if self.tPDAOptions and self.tPDAOptions.tCSColors then
 		tCSColors = self.tPDAOptions.tCSColors
 	else
 		tCSColors = ktCSColors
@@ -454,6 +467,12 @@ end
 function PDA:OnStatusClick(wndHandler, wndControl)
 	local wndDD = wndControl:FindChild("wnd_StatusDD")
 	wndDD:Show(not (wndDD:IsShown()))
+end
+-----------------------------------------------------------------------------------------------
+-- PDA Character Sheet Form Functions
+-----------------------------------------------------------------------------------------------
+function PDA:OnCharacterSheetClose(wndHandler, wndControl)
+	self.wndCS:Show(false)
 end
 
 -----------------------------------------------------------------------------------------------
