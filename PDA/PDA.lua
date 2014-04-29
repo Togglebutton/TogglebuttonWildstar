@@ -17,14 +17,14 @@ local knTargetRange = 40000
 -- e.g. local kiExampleVariableMax = 999
 -- red = IC, Green = Available, Blue = in scene
 local ktRPColors = {
-	"ffffffff", -- white
-	"ffffff00", --yellow
-	"ff0000ff", --blue
-	"ff00ff00", --green
-	"ffff0000", --red
-	"ff800080", --purple
-	"ff00ffff", --cyan
-	"ffff00ff", --magenta
+	[0] = "ffffffff", -- white
+	[1] = "ffffff00", --yellow
+	[2] = "ff0000ff", --blue
+	[3] = "ff00ff00", --green
+	[4] = "ffff0000", --red
+	[5] = "ff800080", --purple
+	[6] = "ff00ffff", --cyan
+	[7] = "ffff00ff", --magenta
 }
 
 local ktCSColors = {
@@ -52,7 +52,7 @@ local ktCSstrings = {
 	Weight = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Weight: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
 	Title = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Title: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
 	Job = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Occupation: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
-	Description = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Description: </T><BR/><P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P>",
+	Description = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Description: \n</T><P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P>",
 }
 local enumGender = {
 	[0] = Apollo.GetString("CRB_Male"),
@@ -77,12 +77,11 @@ function PDA:new(o)
 end
 
 function PDA:Init()
-	--local bHasConfigureButton = true
-	--local strConfigureButtonText = "PDA"
-	local tDependencies = {
+	local bHasConfigureButton = true
+	local strConfigureButtonText = "PDA"
+	local tDependencies = { }
 	--	"RPCore",
-	}
-    Apollo.RegisterAddon(self, bHasConfigureButton, strConfigureButtonText, tDependencies)
+    Apollo.RegisterAddon(self, true, strConfigureButtonText)
 end
  
 -----------------------------------------------------------------------------------------------
@@ -90,15 +89,12 @@ end
 -----------------------------------------------------------------------------------------------
 function PDA:OnLoad()
 	self.xmlDoc = XmlDoc.CreateFromFile("PDA.xml")
-	self.xmlDoc:RegisterCallback("OnDocumentReady", self)
-end
-
-function PDA:OnDocumentReady()
-
+	
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "PDAEditForm", nil, self)
 	self.wndMain:Show(false)
 	
-	--self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
+	self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
+	self.wndOptions:Show(false)
 	
 	Apollo.LoadSprites("PDA_Sprites.xml")
 	
@@ -107,6 +103,7 @@ function PDA:OnDocumentReady()
 	Apollo.RegisterEventHandler("VarChange_FrameCount", "OnFrame", self)
 	
 	Apollo.RegisterSlashCommand("pda", "OnPDAOn", self)
+	Apollo.RegisterSlashCommand("pdaoptions", "OnPDAOptions", self)
 	
 end
 
@@ -119,6 +116,14 @@ end
 function PDA:OnPDAOn()
 	self.wndMain:Show(true) -- show the window
 	self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD"):Show(false)
+end
+
+function PDA:OnPDAOptions()
+	self.wndOptions:Show(true)
+end
+
+function PDA:OnConfigure()
+	self:OnPDAOptions()
 end
 
 function PDA:OnEditShow()
@@ -151,11 +156,6 @@ function PDA:OnEditShow()
 	self.wndMain:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(GameLib.GetPlayerUnit())
 end
 
---[[
-function PDA:OnConfigure()
-	self.wndOptions:Show(true)
-end
-
 function PDA:OnSave(eLevel)
 	if (eLevel ~= GameLib.CodeEnumAddonSaveLevel.Account) then return nil end 
 	return { tPDAOptions = self.tPDAOptions, }
@@ -167,7 +167,6 @@ function PDA:OnRestore(eLevel, tData)
 		self.tPDAOptions = tData.tPDAOptions
 	end
 end
-]]
 
 -----------------------------------------------------------------------------------------------
 -- PDA Nameplate Functions
@@ -177,7 +176,8 @@ function PDA:OnUnitCreated(unitNew)
 	if unitNew:IsACharacter() then
 		local rpVersion, rpAddons = RPCore:QueryVersion(unitNew:GetName())
 		if rpVersion ~= nil then
-			Print("RPCore enabled Unit found.")
+			--Print("RPCore enabled Unit found.")
+			
 			local idUnit = unitNew:GetId()
 			if self.arUnit2Nameplate[idUnit] ~= nil then
 				return
@@ -187,7 +187,14 @@ function PDA:OnUnitCreated(unitNew)
 			
 			wnd:SetUnit(unitNew, 1)
 			wnd:Show(true)
-			Print("Creating Nameplate Window.")
+			
+			if self.PDAoptions and self.PDAoptions.nOffset then
+				local nOffset = self.PDAoptions.nOffset
+				local nLeft, nTop, nRight, nBottom = wnd:GetAnchorOffsets()
+				wnd:SetAnchorOffsets(nLeft,nTop + nOffset, nRight, nBottom + nOffset)
+			end
+			
+			--Print("Creating Nameplate Window.")
 			local tNameplate =
 			{
 				unitOwner 		= unitNew,
@@ -245,14 +252,13 @@ function PDA:DrawNameplate(tNameplate)
 
 	tNameplate.eDisposition = unitOwner:GetDispositionTo(unitPlayer)
 	
-	--[[if unitOwner:IsMounted() and wndNameplate:GetUnit() == unitOwner then
-		wndNameplate:SetUnit(unitOwner:GetUnitMount(), 1)
+	if unitOwner:IsMounted() and wndNameplate:GetUnit() == unitOwner then
+		wndNameplate:SetUnit(unitOwner:GetUnitMount())
 	elseif not unitOwner:IsMounted() and wndNameplate:GetUnit() ~= unitOwner then
-		wndNameplate:SetUnit(unitOwner, 1)
-	end]]
+		wndNameplate:SetUnit(unitOwner)
+	end
 	
-	self:DrawRPNamePlate(tNameplate)
-	
+	self:DrawRPNamePlate(tNameplate)	
 end
 
 function PDA:FastDrawNameplate(tNameplate)
@@ -266,17 +272,48 @@ function PDA:FastDrawNameplate(tNameplate)
 	self:DrawRPNamePlate(tNameplate)
 end
 
+
+function PDA:DrawRPNamePlate(tNameplate)
+	local tRPColors, tCSColors
+	local rpFullname, rpTitle, rpStatus, strNameString
+	local unitName = tNameplate.unitName
+	local xmlNamePlate = XmlDoc:new()
+	local wndNameplate = tNameplate.wndNameplate
+	local wndName = wndNameplate:FindChild("wnd_Name")
+	
+	if self.tPDAOptions and self.tPDAOptions.tRPColors and self.tPDAOptions.tCSColors then
+		tRPColors = self.tPDAOptions.tRPColors
+		tCSColors = self.tPDAOptions.tCSColors
+	else
+		tRPColors = ktRPColors
+		tCSColors = ktCSColors
+	end
+	
+	rpFullname = RPCore:GetTrait(unitName,"fullname") or unitName
+	rpTitle = RPCore:FetchTrait(unitName,"title")
+	rpStatus = RPCore:GetTrait(unitName, "rpflag")
+	
+	if (rpFullname ~= nil) then xmlNamePlate:AddLine(rpFullname, tCSColors.strEntryColor, "CRB_Interface12_BO", "Center")  end
+	if (rpTitle ~= nil) then xmlNamePlate:AddLine(rpTitle, tCSColors.strLabelColor, "CRB_Interface8","Center") end
+	wndName:SetDoc(xmlNamePlate)
+	if rpStatus ~= nil then wndNameplate:FindChild("btn_RP"):SetBGColor(tRPColors[rpStatus]) end
+end
+
 function PDA:HelperVerifyVisibilityOptions(tNameplate)
 	local unitPlayer = GameLib.GetPlayerUnit()
 	local unitOwner = tNameplate.unitOwner
 	local eDisposition = tNameplate.eDisposition
 	local bShowNameplate
-		
+	
+	if self.PDAoptions and self.PDAoptions.bShowMyNameplate then
+		self.bShowMyNameplate = self.PDAoptions.bShowMyNameplate
+	end
+	
 	if (self.bUseOcclusion and tNameplate.bOccluded) or not tNameplate.bOnScreen then
 		return false
 	end
 
-	local bShowNameplate = true
+	local bShowNameplate = false
 
 	if self.bShowDispositionFriendlyPlayer and eDisposition == Unit.CodeEnumDisposition.Friendly and unitOwner:GetType() == "Player" then
 		bShowNameplate = true
@@ -325,32 +362,6 @@ function PDA:CheckDrawDistance(tNameplate)
 		return bInRange
 	end
 	
-end
-
-function PDA:DrawRPNamePlate(tNameplate)
-	local tRPColors, tCSColors
-	local rpFullname, rpTitle, rpStatus, strNameString
-	local unitName = tNameplate.unitName
-	local xmlNamePlate = XmlDoc:new()
-	local wndNameplate = tNameplate.wndNameplate
-	local wndName = wndNameplate:FindChild("wnd_Name")
-	
-	if self.tPDAOptions and self.tPDAOptions.tRPColors and self.tPDAOptions.tCSColors then
-		tRPColors = self.tPDAOptions.tRPColors
-		tCSColors = self.tPDAOptions.tCSColors
-	else
-		tRPColors = ktRPColors
-		tCSColors = ktCSColors
-	end
-	
-	rpFullname = RPCore:GetTrait(unitName,"fullname") or unitName
-	rpTitle = RPCore:FetchTrait(unitName,"title")
-	rpStatus = RPCore:GetTrait(unitName, "rpflag")
-	
-	if (rpFullname ~= nil) then xmlNamePlate:AddLine(rpFullname, tCSColors.strEntryColor, "CRB_Interface12_BO", "Center")  end
-	if (rpTitle ~= nil) then xmlNamePlate:AddLine(rpTitle, tCSColors.strLabelColor, "CRB_Interface8","Center") end
-	wndName:SetDoc(xmlNamePlate)
-	if rpStatus ~= nil then wndNameplate:FindChild("btn_RP"):SetBGColor(tRPColors[(rpStatus + 1)]) end
 end
 
 -----------------------------------------------------------------------------------------------
@@ -457,6 +468,13 @@ function PDA:OnStatusClick(wndHandler, wndControl)
 	local wndDD = wndControl:FindChild("wnd_StatusDD")
 	wndDD:Show(not (wndDD:IsShown()))
 end
+
+function PDA:OnDecriptionBoxChanged( wndHandler, wndControl, strText )
+	local nCharacterCount = string.len(wndControl:GetText())
+	local wndCounter = wndControl:GetParent():FindChild("sprite_div:wnd_Counter")
+	
+	wndCounter:SetText(tostring(250 - nCharacterCount))
+end
 -----------------------------------------------------------------------------------------------
 -- PDA Character Sheet Form Functions
 -----------------------------------------------------------------------------------------------
@@ -471,8 +489,9 @@ end
 function PDA:OnOptionsOK()
 	local bShowMyNameplate = self.wndOptions:FindChild("input_b_ShowPlayerNameplate"):IsChecked()
 	local bCustomColor = self.wndOptions:FindChild("group_NameplateColors"):GetRadioSel("ColorType") == 2
+	local nOffset = self.wndOptions:FindChild("input_n_Offset"):GetValue()
 	
-	if bShowMyNameplate == true or bCustomColor == true then
+	if bShowMyNameplate == true or bCustomColor == true or nOffset > 0 then
 		if not self.tPDAOptions then
 			self.tPDAOptions = {}
 		else
@@ -482,7 +501,9 @@ function PDA:OnOptionsOK()
 		end
 	else
 		self.tPDAOptions = nil
-	end	
+	end
+	
+	
 	
 	if bCustomColor == true then
 		self.tPDAOptions.tRPColors = {}
@@ -491,6 +512,12 @@ function PDA:OnOptionsOK()
 		self.tPDAOptions.tRPColors = nil
 		self.tPDAOptions.tCSColors = nil
 	end	
+	
+	if nOffset > 0 then
+		self.tPDAOptions.nOffset = nOffset
+	else
+		self.tPDAOptions.nOffset = nil
+	end
 	
 	if bShowMyNameplate == true then
 		self.tPDAOptions.bShowMyNameplate = true
@@ -513,15 +540,18 @@ function PDA:OnCustomCheck()
 	self.wndOptions:FindChild("group_NameplateColors:group_CustomColors"):Show(true)
 end
 
----------------------------------------------------------------------------------------------------
--- PDAEditForm Functions
----------------------------------------------------------------------------------------------------
-
-function PDA:OnDecriptionBoxChanged( wndHandler, wndControl, strText )
-	local nCharacterCount = string.len(wndControl:GetText())
-	local wndCounter = wndControl:FindChild("wnd_Counter")
+function PDA:OnShowOptions( wndHandler, wndControl )
+	wndControl:FindChild("group_NameplateColors"):Show(false)
+	wndControl:FindChild("input_n_Offset"):SetMinMax(0,100)
 	
-	wndCounter:SetText(tostring(250 - nCharacterCount))
+	if self.tPDAOptions then
+		if self.tPDAOptions.bShowMyNameplate then
+			wndControl:FindChild("input_b_ShowPlayerNameplate"):SetCheck(self.tPDAOptions.bShowMyNameplate)
+		end
+		if self.tPDAOptions.nOffset then
+			wndControl:FindChild("input_n_Offset"):SetValue(self.tPDAOptions.nOffset)
+		end
+	end
 end
 
 -----------------------------------------------------------------------------------------------
