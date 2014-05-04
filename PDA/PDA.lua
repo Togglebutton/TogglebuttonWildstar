@@ -10,12 +10,13 @@ require "GameLib"
 -----------------------------------------------------------------------------------------------
 local PDA = {} 
 local RPCore = _G["GeminiPackages"]:GetPackage("RPCore-1.1")
-local knTargetRange = 40000
+
+
 -----------------------------------------------------------------------------------------------
 -- Constants
 -----------------------------------------------------------------------------------------------
 -- e.g. local kiExampleVariableMax = 999
--- red = IC, Green = Available, Blue = in scene
+
 local ktRPColors = {
 	[0] = "ffffffff", -- white
 	[1] = "ffffff00", --yellow
@@ -25,6 +26,18 @@ local ktRPColors = {
 	[5] = "ff800080", --purple
 	[6] = "ff00ffff", --cyan
 	[7] = "ffff00ff", --magenta
+}
+
+local knTargetRange = 40000
+
+local ktRaceSprites = {
+	[GameLib.CodeEnumRace.Human] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_HuM_ExFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_HuF_ExFlyby", [2] = "CRB_CharacterCreateSprites:btnCharC_RG_HuM_DomFlyby", [3] = "CRB_CharacterCreateSprites:btnCharC_RG_HuF_DomFlyby"},
+	[GameLib.CodeEnumRace.Granok] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_GrMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_GrFFlyby"},--
+	[GameLib.CodeEnumRace.Aurin] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_AuMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_AuFFlyby"},--
+	[GameLib.CodeEnumRace.Draken] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_DrMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_DrFFlyby"},--
+	[GameLib.CodeEnumRace.Mechari] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_MeMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_MeFFlyby"},--
+	[GameLib.CodeEnumRace.Chua] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_ChuFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_ChuFlyby", [2] = "CRB_CharacterCreateSprites:btnCharC_RG_ChuFlyby"},--
+	[GameLib.CodeEnumRace.Mordesh] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_MoMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_MoMFlyby"},--
 }
 
 local ktCSColors = {
@@ -77,11 +90,11 @@ function PDA:new(o)
 end
 
 function PDA:Init()
-	local bHasConfigureButton = true
-	local strConfigureButtonText = "PDA"
-	local tDependencies = { }
+	local bHasConfigureButton = false
+	local strConfigureButtonText = ""
+	local tDependencies = {}
 	--	"RPCore",
-    Apollo.RegisterAddon(self, true, strConfigureButtonText)
+    Apollo.RegisterAddon(self, bHasConfigureButton, strConfigureButtonText, tDependencies)
 end
  
 -----------------------------------------------------------------------------------------------
@@ -93,6 +106,10 @@ function PDA:OnLoad()
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "PDAEditForm", nil, self)
 	self.wndMain:Show(false)
 	
+	self.wndMain:FindChild("wnd_EditProfile"):Show(false)
+	self.wndMain:FindChild("wnd_LookupProfile"):Show(false)
+	self.wndMain:FindChild("wnd_EditBackground"):Show(false)
+	
 	self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
 	self.wndOptions:Show(false)
 	
@@ -101,6 +118,8 @@ function PDA:OnLoad()
 	Apollo.RegisterEventHandler("UnitCreated","OnUnitCreated",self) 
 	Apollo.RegisterEventHandler("UnitDestroyed","OnUnitDestroyed",self)
 	Apollo.RegisterEventHandler("VarChange_FrameCount", "OnFrame", self)
+	Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
+	Apollo.RegisterEventHandler("ToggleAddon_PDA", "OnPDAOn", self)
 	
 	Apollo.RegisterSlashCommand("pda", "OnPDAOn", self)
 	Apollo.RegisterSlashCommand("pdaoptions", "OnPDAOptions", self)
@@ -118,42 +137,16 @@ function PDA:OnPDAOn()
 	self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD"):Show(false)
 end
 
+function PDA:OnInterfaceMenuListHasLoaded()
+	Event_FireGenericEvent("InterfaceMenuList_NewAddOn", "PDA", {"ToggleAddon_PDA", ""})
+end
+
 function PDA:OnPDAOptions()
 	self.wndOptions:Show(true)
 end
 
 function PDA:OnConfigure()
 	self:OnPDAOptions()
-end
-
-function PDA:OnEditShow()
-	local rpFullname = RPCore:GetLocalTrait("fullname") or GameLib.GetPlayerUnit():GetName()
-	local rpState = RPCore:GetLocalTrait("rpflag") or 1
-	local rpShortBlurb = RPCore:GetLocalTrait("shortdesc")
-	local rpTitle = RPCore:GetLocalTrait("title")
-	local rpHeight = RPCore:GetLocalTrait("height")
-	local rpWeight = RPCore:GetLocalTrait("weight")
-	local rpAge = RPCore:GetLocalTrait("age")
-	local rpRace = karRaceToString[GameLib.GetPlayerUnit():GetRaceId()]
-	local rpGender = enumGender[GameLib.GetPlayerUnit():GetGender()]
-	local rpJob = RPCore:GetLocalTrait("job")
-	
-	self.wndMain:FindChild("input_s_Name"):SetText(rpFullname)
-	if rpTitle and string.len(tostring(rpTitle)) > 1 then self.wndMain:FindChild("input_s_Title"):SetText(rpTitle) end
-	if rpShortBlurb and string.len(tostring(rpShortBlurb)) > 1 then self.wndMain:FindChild("input_s_Description"):SetText(rpShortBlurb) end
-	if rpJob and string.len(tostring(rpJob)) > 1 then self.wndMain:FindChild("input_s_Job"):SetText(rpJob) end
-	if rpRace and string.len(tostring(rpRace)) > 1 then self.wndMain:FindChild("input_s_Race"):SetText(rpRace) end
-	if rpGender and string.len(tostring(rpGender)) > 1 then self.wndMain:FindChild("input_s_Gender"):SetText(rpGender) end
-	if rpAge and string.len(tostring(rpAge)) > 1 then self.wndMain:FindChild("input_s_Age"):SetText(rpAge) end
-	if rpHeight and string.len(tostring(rpHeight)) > 1 then self.wndMain:FindChild("input_s_Height"):SetText(rpHeight) end
-	if rpWeight and string.len(tostring(rpWeight)) > 1 then self.wndMain:FindChild("input_s_Weight"):SetText(rpWeight) end
-
-	for i = 1, 3 do
-		local wndButton = self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD:input_b_RoleplayToggle" .. i)
-		wndButton:SetCheck(RPCore:HasBitFlag(rpState,i))
-	end
-	
-	self.wndMain:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(GameLib.GetPlayerUnit())
 end
 
 function PDA:OnSave(eLevel)
@@ -271,7 +264,6 @@ function PDA:FastDrawNameplate(tNameplate)
 	end
 	self:DrawRPNamePlate(tNameplate)
 end
-
 
 function PDA:DrawRPNamePlate(tNameplate)
 	local tRPColors, tCSColors
@@ -420,21 +412,60 @@ function PDA:CreateCharacterSheet(wndHandler, wndControl)
 	end	
 end
 
-
 -----------------------------------------------------------------------------------------------
 -- PDA Edit Form Functions
 -----------------------------------------------------------------------------------------------
 
-function PDA:OnOK()
-	self.wndMain:Show(false) -- hide the window
+function PDA:TabToggle(wndHandler, wndControl)
+	self.wndMain:FindChild("wnd_EditProfile"):Show(false)
+	self.wndMain:FindChild("wnd_LookupProfile"):Show(false)
+	self.wndMain:FindChild("wnd_EditBackground"):Show(false)
+	local btnRadio = self.wndMain:GetRadioSelButton("PDATab")
+	local strToggleType = btnRadio:GetName()
+	strToggleType = strToggleType:sub(5)
+	self.wndMain:FindChild("wnd_"..strToggleType):Show(btnRadio:IsChecked())
+end
+
+function PDA:OnEditShow()
+	local rpFullname = RPCore:GetLocalTrait("fullname") or GameLib.GetPlayerUnit():GetName()
+	local rpState = RPCore:GetLocalTrait("rpflag") or 1
+	local rpShortBlurb = RPCore:GetLocalTrait("shortdesc")
+	local rpTitle = RPCore:GetLocalTrait("title")
+	local rpHeight = RPCore:GetLocalTrait("height")
+	local rpWeight = RPCore:GetLocalTrait("weight")
+	local rpAge = RPCore:GetLocalTrait("age")
+	local rpRace = karRaceToString[GameLib.GetPlayerUnit():GetRaceId()]
+	local rpGender = enumGender[GameLib.GetPlayerUnit():GetGender()]
+	local rpJob = RPCore:GetLocalTrait("job")
 	
-	local strFullname = self.wndMain:FindChild("input_s_Name"):GetText()
-	local strCharTitle = self.wndMain:FindChild("input_s_Title"):GetText()
-	local strBlurb = self.wndMain:FindChild("input_s_Description"):GetText()
-	local strHeight = self.wndMain:FindChild("input_s_Height"):GetText()
-	local strWeight = self.wndMain:FindChild("input_s_Weight"):GetText()
-	local strAge = self.wndMain:FindChild("input_s_Age"):GetText()
-	local strJob = self.wndMain:FindChild("input_s_Job"):GetText()
+	self.wndMain:FindChild("input_s_Name"):SetText(rpFullname)
+	if rpTitle and string.len(tostring(rpTitle)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Title"):SetText(rpTitle) end
+	if rpShortBlurb and string.len(tostring(rpShortBlurb)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):SetText(rpShortBlurb) end
+	if rpJob and string.len(tostring(rpJob)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Job"):SetText(rpJob) end
+	if rpRace and string.len(tostring(rpRace)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Race"):SetText(rpRace) end
+	if rpGender and string.len(tostring(rpGender)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Gender"):SetText(rpGender) end
+	if rpAge and string.len(tostring(rpAge)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Age"):SetText(rpAge) end
+	if rpHeight and string.len(tostring(rpHeight)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Height"):SetText(rpHeight) end
+	if rpWeight and string.len(tostring(rpWeight)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Weight"):SetText(rpWeight) end
+
+	for i = 1, 3 do
+		local wndButton = self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD:input_b_RoleplayToggle" .. i)
+		wndButton:SetCheck(RPCore:HasBitFlag(rpState,i))
+	end
+	
+	self.wndMain:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(GameLib.GetPlayerUnit())
+end
+
+function PDA:OnOK()
+	self.wndMain:FindChild("wndEditProfile"):Show(false) -- hide the window
+	
+	local strFullname = self.wndMain:FindChild("wnd_EditProfile:input_s_Name"):GetText()
+	local strCharTitle = self.wndMain:FindChild("wnd_EditProfile:input_s_Title"):GetText()
+	local strBlurb = self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):GetText()
+	local strHeight = self.wndMain:FindChild("wnd_EditProfile:input_s_Height"):GetText()
+	local strWeight = self.wndMain:FindChild("wnd_EditProfile:input_s_Weight"):GetText()
+	local strAge = self.wndMain:FindChild("wnd_EditProfile:input_s_Age"):GetText()
+	local strJob = self.wndMain:FindChild("wnd_EditProfile:input_s_Job"):GetText()
 	local rpState = 0
 	
 	for i = 1, 3 do 
@@ -460,7 +491,13 @@ function PDA:OnCancel()
 end
 
 function PDA:OnPortrait(wndHandler, wndControl)
-	local wndPortrait = wndControl:GetParent():FindChild("wnd_Portrait")
+	local wndPortrait
+	if wndControl:GetParent():GetName() == "wnd_Portrait" then
+		wndPortrait = wndControl:GetParent()
+	else
+		wndPortrait = wndControl:GetParent():FindChild("wnd_Portrait")
+		
+	end
 	wndPortrait:Show( not wndPortrait:IsShown() )
 end
 

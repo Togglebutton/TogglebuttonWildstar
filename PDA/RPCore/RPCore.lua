@@ -287,7 +287,6 @@ function RPCore:OnLoad()
 	Apollo.RegisterTimerHandler("RPCore_CacheClean","CleanupCache",self)
 	
 	Apollo.CreateTimer("RPCore_RCMP_Setup",1,false) 
-	Apollo.CreateTimer("RPCore_CacheClean", 3600, true)
 end 
 
 function RPCore:OnSave(eLevel)
@@ -830,6 +829,12 @@ function RPCore:Stats()
 	
 	return nLocalTraits, nCachedTraits, nPlayers
 end 
+
+function RPCore:GetCachedPlayerList()
+	local tCachedPlayers = {}
+	for strPlayerName,_ in pairs(self.tCachedPlayerData) do tCachedPlayers.insert(strPlayerName) end
+	return tCachedPlayers
+end
 
 function RPCore:CacheAsTable()
 	local tData = {}
