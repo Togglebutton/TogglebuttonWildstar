@@ -28,7 +28,7 @@ local ktRPColors = {
 	[7] = "ffff00ff", --magenta
 }
 
-local knTargetRange = 40000
+local knTargetRange = 400
 
 local ktRaceSprites = {
 	[GameLib.CodeEnumRace.Human] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_HuM_ExFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_HuF_ExFlyby", [2] = "CRB_CharacterCreateSprites:btnCharC_RG_HuM_DomFlyby", [3] = "CRB_CharacterCreateSprites:btnCharC_RG_HuF_DomFlyby"},
@@ -72,6 +72,15 @@ local enumGender = {
 	[1] = Apollo.GetString("CRB_Female"),
 	[2] = Apollo.GetString("CRB_UnknownType"),
 }
+
+local knDescriptionMax = 250
+local knBioMaxMax = 2500
+
+--[[
+	local pixieClickBar = wndClickTimeFrame:GetPixieInfo(1)
+	pixieClickBar.cr = crBarColor
+	wndClickTimeFrame:UpdatePixie(1, pixieClickBar)
+]]
 -----------------------------------------------------------------------------------------------
 -- Initialization
 -----------------------------------------------------------------------------------------------
@@ -93,8 +102,8 @@ function PDA:Init()
 	local bHasConfigureButton = false
 	local strConfigureButtonText = ""
 	local tDependencies = {}
-	--	"RPCore",
     Apollo.RegisterAddon(self, bHasConfigureButton, strConfigureButtonText, tDependencies)
+	
 end
  
 -----------------------------------------------------------------------------------------------
@@ -106,24 +115,28 @@ function PDA:OnLoad()
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "PDAEditForm", nil, self)
 	self.wndMain:Show(false)
 	
-	self.wndMain:FindChild("wnd_EditProfile"):Show(false)
+	self.wndMain:FindChild("btn_EditProfile"):SetCheck(true)
+	self.wndMain:FindChild("btn_EditBackground"):Enable(false)
+	
+	self.wndMain:FindChild("wnd_EditProfile"):Show(true)
 	self.wndMain:FindChild("wnd_LookupProfile"):Show(false)
 	self.wndMain:FindChild("wnd_EditBackground"):Show(false)
-	
-	self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
-	self.wndOptions:Show(false)
+	self.wndMain:FindChild("wnd_Options"):Show(false)
+	self.wndMain:FindChild("wnd_Portrait"):Show(false)
 	
 	Apollo.LoadSprites("PDA_Sprites.xml")
 	
 	Apollo.RegisterEventHandler("UnitCreated","OnUnitCreated",self) 
 	Apollo.RegisterEventHandler("UnitDestroyed","OnUnitDestroyed",self)
-	Apollo.RegisterEventHandler("VarChange_FrameCount", "OnFrame", self)
 	Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
 	Apollo.RegisterEventHandler("ToggleAddon_PDA", "OnPDAOn", self)
+	--Apollo.RegisterEventHandler("VarChange_FrameCount", "OnFrame", self)
+	
+	Apollo.RegisterTimerHandler("PDA_RefreshTimer","RefreshPlates",self)
 	
 	Apollo.RegisterSlashCommand("pda", "OnPDAOn", self)
-	Apollo.RegisterSlashCommand("pdaoptions", "OnPDAOptions", self)
 	
+	Apollo.CreateTimer("PDA_RefreshTimer", 60, true)
 end
 
 -----------------------------------------------------------------------------------------------
@@ -134,19 +147,10 @@ end
 -- on SlashCommand "/pda"
 function PDA:OnPDAOn()
 	self.wndMain:Show(true) -- show the window
-	self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD"):Show(false)
 end
 
 function PDA:OnInterfaceMenuListHasLoaded()
-	Event_FireGenericEvent("InterfaceMenuList_NewAddOn", "PDA", {"ToggleAddon_PDA", ""})
-end
-
-function PDA:OnPDAOptions()
-	self.wndOptions:Show(true)
-end
-
-function PDA:OnConfigure()
-	self:OnPDAOptions()
+	Event_FireGenericEvent("InterfaceMenuList_NewAddOn", "PDA", {"ToggleAddon_PDA", "", "PDA_Sprites:RPIcon"})
 end
 
 function PDA:OnSave(eLevel)
@@ -156,9 +160,15 @@ end
 
 function PDA:OnRestore(eLevel, tData)
 
-	if (tData.PDAoptions ~= nil) then
+	if (tData.tPDAoptions ~= nil) then
 		self.tPDAOptions = tData.tPDAOptions
+		if self.tPDAOptions.bShowMyNameplate then self.bShowMyNameplate = self.tPDAOptions.bShowMyNameplate end
 	end
+	
+end
+
+function PDA:UpdateTimer(nNewTime)
+	
 end
 
 -----------------------------------------------------------------------------------------------
@@ -171,28 +181,20 @@ function PDA:OnUnitCreated(unitNew)
 		if rpVersion ~= nil then
 			--Print("RPCore enabled Unit found.")
 			
-			local idUnit = unitNew:GetId()
-			if self.arUnit2Nameplate[idUnit] ~= nil then
+			local strUnitName = unitNew:GetName()
+			if self.arUnit2Nameplate[strUnitName] ~= nil then
 				return
 			end
 			
 			local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
-			
-			wnd:SetUnit(unitNew, 1)
+			wnd:SetUnit(unitNew)
 			wnd:Show(true)
-			
-			if self.PDAoptions and self.PDAoptions.nOffset then
-				local nOffset = self.PDAoptions.nOffset
-				local nLeft, nTop, nRight, nBottom = wnd:GetAnchorOffsets()
-				wnd:SetAnchorOffsets(nLeft,nTop + nOffset, nRight, nBottom + nOffset)
-			end
-			
-			--Print("Creating Nameplate Window.")
+
 			local tNameplate =
 			{
 				unitOwner 		= unitNew,
 				idUnit 			= unitNew:GetId(),
-				unitName		= unitNew:GetName(),
+				unitName		= strUnitName,
 				wndNameplate	= wnd,
 				bOnScreen 		= wnd:IsOnScreen(),
 				bOccluded 		= wnd:IsOccluded(),
@@ -200,28 +202,48 @@ function PDA:OnUnitCreated(unitNew)
 				eDisposition	= unitNew:GetDispositionTo(GameLib.GetPlayerUnit()),
 			}
 			
-			self.arUnit2Nameplate[idUnit] = tNameplate
-			self.arWnd2Nameplate[wnd:GetId()] = tNameplate
+			self.arUnit2Nameplate[strUnitName] = tNameplate
+			
+			self:DrawNameplate(tNameplate)
 		end
 	end
 end 
 
 function PDA:OnUnitDestroyed(unitOwner)
 	if unitOwner:IsACharacter() then
-		local idUnit = unitOwner:GetId()
-		if self.arUnit2Nameplate[idUnit] == nil then
+		
+		local strUnitName = unitOwner:GetName()
+		if self.arUnit2Nameplate[strUnitName] == nil then
 			return
 		end
 		
-		local wndNameplate = self.arUnit2Nameplate[idUnit].wndNameplate
+		local wndNameplate = self.arUnit2Nameplate[strUnitName].wndNameplate
 		
-		self.arWnd2Nameplate[wndNameplate:GetId()] = nil
 		wndNameplate:Destroy()
-		self.arUnit2Nameplate[idUnit] = nil
+		self.arUnit2Nameplate[strUnitName] = nil
 	end
 end
 
+local nFrame = 0
+
 function PDA:OnFrame()
+	
+	if nFrame >= 60 then
+		for idx, tNameplate in pairs(self.arUnit2Nameplate) do
+			if self.bFrameAlt then
+				self:DrawNameplate(tNameplate)
+			else
+				self:FastDrawNameplate(tNameplate)
+			end
+		end
+		self.bFrameAlt = not self.bFrameAlt
+		nFrame = 0
+	else
+		nFrame = nFrame + 1
+	end	
+end
+
+function PDA:RefreshPlates()
 	for idx, tNameplate in pairs(self.arUnit2Nameplate) do
 		if self.bFrameAlt then
 			self:DrawNameplate(tNameplate)
@@ -237,19 +259,33 @@ function PDA:DrawNameplate(tNameplate)
 	local unitOwner = tNameplate.unitOwner
 	local wndNameplate = tNameplate.wndNameplate
 	
+	if not wndNameplate then
+		local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
+		wnd:SetUnit(unitNew)
+		wnd:Show(true)
+		tNameplate.wndNameplate = wnd
+		wndNameplate = wnd
+	end
+	
 	local bShowNameplate = self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
 	wndNameplate:Show(bShowNameplate)
 	if not bShowNameplate then
 		return
 	end
-
-	tNameplate.eDisposition = unitOwner:GetDispositionTo(unitPlayer)
 	
-	if unitOwner:IsMounted() and wndNameplate:GetUnit() == unitOwner then
-		wndNameplate:SetUnit(unitOwner:GetUnitMount())
-	elseif not unitOwner:IsMounted() and wndNameplate:GetUnit() ~= unitOwner then
-		wndNameplate:SetUnit(unitOwner)
+	if self.tPDAOptions and self.tPDAOptions.nOffset then
+		if tNameplate.nOffset ~= self.tPDAOptions.nOffset then
+			tNameplate.nOffset = self.tPDAOptions.nOffset
+			local nL, nT, nR, nB = wndNameplate:GetAnchorOffsets()
+			wndNameplate:SetAnchorOffsets(nL, nT - tNameplate.nOffset, nR, nB - tNameplate.nOffset)
+		end
 	end
+		
+	if unitOwner:IsMounted() and wndNameplate:GetUnit() == unitOwner then
+		wndNameplate:SetUnit(tNameplate.unitOwner:GetUnitMount(), 1)
+    elseif not unitOwner:IsMounted() and wndNameplate:GetUnit() ~= unitOwner then
+		wndNameplate:SetUnit(unitOwner, 1)
+    end
 	
 	self:DrawRPNamePlate(tNameplate)	
 end
@@ -258,7 +294,7 @@ function PDA:FastDrawNameplate(tNameplate)
 	local wndNameplate = tNameplate.wndNameplate
 
 	local bShowNameplate = self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
-	wndNameplate:Show(bShowNameplate)
+	wndNameplate:Show(true)
 	if not bShowNameplate then
 		return
 	end
@@ -266,6 +302,7 @@ function PDA:FastDrawNameplate(tNameplate)
 end
 
 function PDA:DrawRPNamePlate(tNameplate)
+	--Print("Drawing NamePlate")
 	local tRPColors, tCSColors
 	local rpFullname, rpTitle, rpStatus, strNameString
 	local unitName = tNameplate.unitName
@@ -289,30 +326,25 @@ function PDA:DrawRPNamePlate(tNameplate)
 	if (rpTitle ~= nil) then xmlNamePlate:AddLine(rpTitle, tCSColors.strLabelColor, "CRB_Interface8","Center") end
 	wndName:SetDoc(xmlNamePlate)
 	if rpStatus ~= nil then wndNameplate:FindChild("btn_RP"):SetBGColor(tRPColors[rpStatus]) end
+	wndNameplate:Show(true)
 end
 
 function PDA:HelperVerifyVisibilityOptions(tNameplate)
+	
 	local unitPlayer = GameLib.GetPlayerUnit()
 	local unitOwner = tNameplate.unitOwner
 	local eDisposition = tNameplate.eDisposition
+	local wndNameplate = tNameplate.wndNameplate
 	local bShowNameplate
 	
-	if self.PDAoptions and self.PDAoptions.bShowMyNameplate then
-		self.bShowMyNameplate = self.PDAoptions.bShowMyNameplate
-	end
-	
-	if (self.bUseOcclusion and tNameplate.bOccluded) or not tNameplate.bOnScreen then
-		return false
-	end
+	if unitOwner:IsOccluded() or not unitOwner:ShouldShowNamePlate() then return false end
 
 	local bShowNameplate = false
 
-	if self.bShowDispositionFriendlyPlayer and eDisposition == Unit.CodeEnumDisposition.Friendly and unitOwner:GetType() == "Player" then
-		bShowNameplate = true
-	end
+	if unitOwner:GetType() == "Player" then bShowNameplate = true end
 	
 	if unitOwner:IsThePlayer() then
-		if self.bShowMyNameplate and not unitOwner:IsDead() then
+		if self.bShowMyNameplate == true and not unitOwner:IsDead() then
 			bShowNameplate = true
 		else
 			bShowNameplate = false
@@ -377,8 +409,8 @@ function PDA:DrawCharacterSheet(unitName)
 	rpHeight = RPCore:GetTrait(unitName,"height")
 	rpWeight = RPCore:GetTrait(unitName,"weight")
 	rpAge = RPCore:GetTrait(unitName,"age")
-	rpRace = karRaceToString[unit:GetRaceId()]
-	rpGender = enumGender[unit:GetGender()]
+	rpRace = RPCore:GetTrait(unitName, "race") or karRaceToString[unit:GetRaceId()]
+	rpGender = RPCore:GetTrait(unitName, "gender") or enumGender[unit:GetGender()]
 	rpJob = RPCore:GetTrait(unitName,"job") or GameLib.CodeEnumClass[unit:GetClassId()]
 
 	if (rpFullname ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Name, tCSColors.strLabelColor, tCSColors.strEntryColor, rpFullname)) end
@@ -416,77 +448,17 @@ end
 -- PDA Edit Form Functions
 -----------------------------------------------------------------------------------------------
 
-function PDA:TabToggle(wndHandler, wndControl)
-	self.wndMain:FindChild("wnd_EditProfile"):Show(false)
-	self.wndMain:FindChild("wnd_LookupProfile"):Show(false)
-	self.wndMain:FindChild("wnd_EditBackground"):Show(false)
-	local btnRadio = self.wndMain:GetRadioSelButton("PDATab")
-	local strToggleType = btnRadio:GetName()
-	strToggleType = strToggleType:sub(5)
-	self.wndMain:FindChild("wnd_"..strToggleType):Show(btnRadio:IsChecked())
-end
-
-function PDA:OnEditShow()
-	local rpFullname = RPCore:GetLocalTrait("fullname") or GameLib.GetPlayerUnit():GetName()
-	local rpState = RPCore:GetLocalTrait("rpflag") or 1
-	local rpShortBlurb = RPCore:GetLocalTrait("shortdesc")
-	local rpTitle = RPCore:GetLocalTrait("title")
-	local rpHeight = RPCore:GetLocalTrait("height")
-	local rpWeight = RPCore:GetLocalTrait("weight")
-	local rpAge = RPCore:GetLocalTrait("age")
-	local rpRace = karRaceToString[GameLib.GetPlayerUnit():GetRaceId()]
-	local rpGender = enumGender[GameLib.GetPlayerUnit():GetGender()]
-	local rpJob = RPCore:GetLocalTrait("job")
-	
-	self.wndMain:FindChild("input_s_Name"):SetText(rpFullname)
-	if rpTitle and string.len(tostring(rpTitle)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Title"):SetText(rpTitle) end
-	if rpShortBlurb and string.len(tostring(rpShortBlurb)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):SetText(rpShortBlurb) end
-	if rpJob and string.len(tostring(rpJob)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Job"):SetText(rpJob) end
-	if rpRace and string.len(tostring(rpRace)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Race"):SetText(rpRace) end
-	if rpGender and string.len(tostring(rpGender)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Gender"):SetText(rpGender) end
-	if rpAge and string.len(tostring(rpAge)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Age"):SetText(rpAge) end
-	if rpHeight and string.len(tostring(rpHeight)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Height"):SetText(rpHeight) end
-	if rpWeight and string.len(tostring(rpWeight)) > 1 then self.wndMain:FindChild("wnd_EditProfile:input_s_Weight"):SetText(rpWeight) end
-
-	for i = 1, 3 do
-		local wndButton = self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD:input_b_RoleplayToggle" .. i)
-		wndButton:SetCheck(RPCore:HasBitFlag(rpState,i))
+---- General Methods ----
+function PDA:TabShow(wndHandler, wndControl)
+	local btnName = wndControl:GetName()
+	if btnName == "btn_EditBackground" or btnName == "btn_LookupProfile" or btnName == "btn_EditProfile" then
+		self.wndMain:FindChild("wnd_EditProfile"):Show(self.wndMain:FindChild("btn_EditProfile"):IsChecked())
+		self.wndMain:FindChild("wnd_LookupProfile"):Show(self.wndMain:FindChild("btn_LookupProfile"):IsChecked())
+		self.wndMain:FindChild("wnd_EditBackground"):Show(self.wndMain:FindChild("btn_EditBackground"):IsChecked())
 	end
-	
-	self.wndMain:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(GameLib.GetPlayerUnit())
 end
 
-function PDA:OnOK()
-	self.wndMain:FindChild("wndEditProfile"):Show(false) -- hide the window
-	
-	local strFullname = self.wndMain:FindChild("wnd_EditProfile:input_s_Name"):GetText()
-	local strCharTitle = self.wndMain:FindChild("wnd_EditProfile:input_s_Title"):GetText()
-	local strBlurb = self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):GetText()
-	local strHeight = self.wndMain:FindChild("wnd_EditProfile:input_s_Height"):GetText()
-	local strWeight = self.wndMain:FindChild("wnd_EditProfile:input_s_Weight"):GetText()
-	local strAge = self.wndMain:FindChild("wnd_EditProfile:input_s_Age"):GetText()
-	local strJob = self.wndMain:FindChild("wnd_EditProfile:input_s_Job"):GetText()
-	local rpState = 0
-	
-	for i = 1, 3 do 
-		local wndButton = self.wndMain:FindChild("wnd_Controls:btn_StatusDD:wnd_StatusDD:input_b_RoleplayToggle" .. i) 
-		rpState = RPCore:SetBitFlag(rpState,i,wndButton:IsChecked())
-	end 
-	
-	RPCore:SetLocalTrait("fullname",strFullname)
-	RPCore:SetLocalTrait("rpflag",rpState)
-	if string.len(tostring(strCharTitle)) > 1 then RPCore:SetLocalTrait("title",strCharTitle) else RPCore:SetLocalTrait("title",nil) end
-	if string.len(tostring(strBlurb)) > 1 then RPCore:SetLocalTrait("shortdesc", strBlurb) else RPCore:SetLocalTrait("shortdesc", nil) end
-	if string.len(tostring(strHeight)) > 1 then RPCore:SetLocalTrait("height", strHeight) else RPCore:SetLocalTrait("height", nil) end
-	if string.len(tostring(strWeight)) > 1 then RPCore:SetLocalTrait("weight", strWeight) else RPCore:SetLocalTrait("weight", nil) end
-	if string.len(tostring(strAge)) > 1 then RPCore:SetLocalTrait("age", strAge) else RPCore:SetLocalTrait("age", nil) end
-	if string.len(tostring(strJob)) > 1 then RPCore:SetLocalTrait("job", strJob) else RPCore:SetLocalTrait("job", nil) end
-	
-	--self:DrawNameplate(self.arUnit2Nameplate[GameLib.GetPlayerUnit():GetId()])
-	
-end
-
-function PDA:OnCancel()
+function PDA:OnClose()
 	self.wndMain:Show(false) -- hide the window
 end
 
@@ -501,9 +473,84 @@ function PDA:OnPortrait(wndHandler, wndControl)
 	wndPortrait:Show( not wndPortrait:IsShown() )
 end
 
-function PDA:OnStatusClick(wndHandler, wndControl)
-	local wndDD = wndControl:FindChild("wnd_StatusDD")
-	wndDD:Show(not (wndDD:IsShown()))
+function PDA:OnStatusShow()
+	local rpState = RPCore:GetLocalTrait("rpflag") or 1
+	for i = 1, 3 do
+		local wndButton = self.wndMain:FindChild("wnd_Status:input_b_RoleplayToggle" .. i)
+		wndButton:SetCheck(RPCore:HasBitFlag(rpState,i))
+	end
+end
+
+function PDA:OnStatusCheck(wndHandler, wndControl)
+	local rpState = 0
+	for i = 1, 3 do 
+		local wndButton = wndHandler:FindChild("input_b_RoleplayToggle" .. i) 
+		rpState = RPCore:SetBitFlag(rpState,i,wndButton:IsChecked())
+	end 
+	RPCore:SetLocalTrait("rpflag",rpState)
+end
+
+---- Edit Profile Methods ----
+function PDA:OnEditShow()
+	local wndEditProfile = self.wndMain:FindChild("wnd_EditProfile")
+	
+	local rpFullname = RPCore:GetLocalTrait("fullname") or GameLib.GetPlayerUnit():GetName()
+	local rpShortBlurb = RPCore:GetLocalTrait("shortdesc")
+	local rpTitle = RPCore:GetLocalTrait("title")
+	local rpHeight = RPCore:GetLocalTrait("height")
+	local rpWeight = RPCore:GetLocalTrait("weight")
+	local rpAge = RPCore:GetLocalTrait("age")
+	local rpRace = karRaceToString[GameLib.GetPlayerUnit():GetRaceId()]
+	local rpJob = RPCore:GetLocalTrait("job")
+	local rpGender = RPCore:GetLocalTrait("gender") or enumGender[GameLib.GetPlayerUnit():GetGender()]
+	
+	wndEditProfile:FindChild("input_s_Name"):SetText(rpFullname)
+	if rpTitle and string.len(tostring(rpTitle)) > 1 then wndEditProfile:FindChild("input_s_Title"):SetText(rpTitle) end
+	if rpShortBlurb and string.len(tostring(rpShortBlurb)) > 1 then wndEditProfile:FindChild("input_s_Description"):SetText(rpShortBlurb) end
+	if rpJob and string.len(tostring(rpJob)) > 1 then wndEditProfile:FindChild("input_s_Job"):SetText(rpJob) end
+	if rpRace and string.len(tostring(rpRace)) > 1 then wndEditProfile:FindChild("input_s_Race"):SetText(rpRace) end
+	if rpGender and string.len(tostring(rpGender)) > 1 then wndEditProfile:FindChild("input_s_Gender"):SetText(rpGender) end
+	if rpAge and string.len(tostring(rpAge)) > 1 then wndEditProfile:FindChild("input_s_Age"):SetText(rpAge) end
+	if rpHeight and string.len(tostring(rpHeight)) > 1 then wndEditProfile:FindChild("input_s_Height"):SetText(rpHeight) end
+	if rpWeight and string.len(tostring(rpWeight)) > 1 then wndEditProfile:FindChild("input_s_Weight"):SetText(rpWeight) end
+	if rpGender and string.len(tostring(rpGender)) > 1 then wndEditProfile:FindChild("input_s_Gender"):SetText(rpGender) end
+
+	self.wndMain:FindChild("wnd_Portrait"):Show(false)
+	self.wndMain:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(GameLib.GetPlayerUnit())
+end
+
+function PDA:OnEditOK()
+	local wndEditProfile = self.wndMain:FindChild("wnd_EditProfile")
+		
+	local strFullname = wndEditProfile:FindChild("input_s_Name"):GetText()
+	local strCharTitle = wndEditProfile:FindChild("input_s_Title"):GetText()
+	local strBlurb = wndEditProfile:FindChild("input_s_Description"):GetText()
+	local strHeight = wndEditProfile:FindChild("input_s_Height"):GetText()
+	local strWeight = wndEditProfile:FindChild("input_s_Weight"):GetText()
+	local strAge = wndEditProfile:FindChild("input_s_Age"):GetText()
+	local strJob = wndEditProfile:FindChild("input_s_Job"):GetText()
+	local strGender = wndEditProfile:FindChild("input_s_Gender"):GetText()
+	local nSex = GameLib.GetPlayerUnit():GetGender()
+	local nFaction = GameLib.GetPlayerUnit():GetFaction()
+	
+	RPCore:SetLocalTrait("fullname",strFullname)
+	RPCore:SetLocalTrait("sex", nSex)
+	RPCore:SetLocalTrait("faction", nFaction)
+	
+	if string.len(tostring(strCharTitle)) > 1 then RPCore:SetLocalTrait("title",strCharTitle) else RPCore:SetLocalTrait("title",nil) end
+	if string.len(tostring(strBlurb)) > 1 then RPCore:SetLocalTrait("shortdesc", strBlurb) else RPCore:SetLocalTrait("shortdesc", nil) end
+	if string.len(tostring(strHeight)) > 1 then RPCore:SetLocalTrait("height", strHeight) else RPCore:SetLocalTrait("height", nil) end
+	if string.len(tostring(strWeight)) > 1 then RPCore:SetLocalTrait("weight", strWeight) else RPCore:SetLocalTrait("weight", nil) end
+	if string.len(tostring(strAge)) > 1 then RPCore:SetLocalTrait("age", strAge) else RPCore:SetLocalTrait("age", nil) end
+	if string.len(tostring(strJob)) > 1 then RPCore:SetLocalTrait("job", strJob) else RPCore:SetLocalTrait("job", nil) end
+	if string.len(tostring(strGender)) > 1 then RPCore:SetLocalTrait("gender", strGender) else RPCore:SetLocalTrait("gender", nil) end
+	
+	
+	self:OnEditShow() -- hide the window
+end
+
+function PDA:OnEditCancel()
+	self.wndMain:FindChild("wnd_EditProfile"):Show(false)
 end
 
 function PDA:OnDecriptionBoxChanged( wndHandler, wndControl, strText )
@@ -512,61 +559,80 @@ function PDA:OnDecriptionBoxChanged( wndHandler, wndControl, strText )
 	
 	wndCounter:SetText(tostring(250 - nCharacterCount))
 end
------------------------------------------------------------------------------------------------
--- PDA Character Sheet Form Functions
------------------------------------------------------------------------------------------------
-function PDA:OnCharacterSheetClose(wndHandler, wndControl)
-	self.wndCS:Show(false)
-end
+-- Segoe UI Bold, Semibold, Italic
+-- Cube Offc Cond
+-- 10, 12, 14, 16, 18
+--[[
+{
+	face = "",
+	index = n,
+	name = "",
+	size = n,
+}
+]]
 
------------------------------------------------------------------------------------------------
--- PDA Options Form Functions
------------------------------------------------------------------------------------------------
-
+---- Options Methods ----
 function PDA:OnOptionsOK()
-	local bShowMyNameplate = self.wndOptions:FindChild("input_b_ShowPlayerNameplate"):IsChecked()
-	local bCustomColor = self.wndOptions:FindChild("group_NameplateColors"):GetRadioSel("ColorType") == 2
-	local nOffset = self.wndOptions:FindChild("input_n_Offset"):GetValue()
-	
-	if bShowMyNameplate == true or bCustomColor == true or nOffset > 0 then
-		if not self.tPDAOptions then
-			self.tPDAOptions = {}
-		else
-			for i,v in pairs(self.tPDAOptions) do
-				self.tPDAOptions[i] = nil
-			end
-		end
-	else
-		self.tPDAOptions = nil
-	end
-	
-	
+	local wndOptions = self.wndMain:FindChild("wnd_Options")
+	local bShowMyNameplate = wndOptions:FindChild("input_b_ShowPlayerNameplate"):IsChecked()
+	local bCustomColor = wndOptions:FindChild("group_NameplateColors"):GetRadioSel("ColorType") == 2
+	local nOffset = wndOptions:FindChild("input_n_Offset"):GetValue()
 	
 	if bCustomColor == true then
+		if not self.tPDAOptions then
+			self.tPDAOptions = {}
+		end
 		self.tPDAOptions.tRPColors = {}
 		self.tPDAOptions.tCSColors = {}
 	elseif bCustomColor == false then
+		if not self.tPDAOptions then
+			self.tPDAOptions = {}
+		end
 		self.tPDAOptions.tRPColors = nil
 		self.tPDAOptions.tCSColors = nil
 	end	
 	
 	if nOffset > 0 then
+		if not self.tPDAOptions then
+			self.tPDAOptions = {}
+		end
 		self.tPDAOptions.nOffset = nOffset
 	else
+		if not self.tPDAOptions then
+			self.tPDAOptions = {}
+		end
 		self.tPDAOptions.nOffset = nil
 	end
 	
 	if bShowMyNameplate == true then
+		if not self.tPDAOptions then
+			self.tPDAOptions = {}
+		end
 		self.tPDAOptions.bShowMyNameplate = true
 	else
+		if not self.tPDAOptions then
+			self.tPDAOptions = {}
+		end
 		self.tPDAOptions.bShowMyNameplate = nil
 	end
-
-	self.wndOptions:Show(false) -- hide the window
+	
+	if #self.tPDAOptions < 1 then
+		self.tPDAOptions = nil
+	end
+	
+	wndOptions:Show(false) -- hide the window
+	local button = self.wndMain:GetRadioSelButton("PDATab")
+	self.wndMain:FindChild("wnd_EditProfile"):Show(self.wndMain:FindChild("btn_EditProfile"):IsChecked())
+	self.wndMain:FindChild("wnd_LookupProfile"):Show(self.wndMain:FindChild("btn_LookupProfile"):IsChecked())
+	self.wndMain:FindChild("wnd_EditBackground"):Show(self.wndMain:FindChild("btn_EditBackground"):IsChecked())
 end
 
 function PDA:OnOptionsCancel()
-	self.wndOptions:Show(false) -- hide the window
+	self.wndMain:FindChild("wnd_Options"):Show(false) -- hide the window
+	local button = self.wndMain:GetRadioSelButton("PDATab")
+	self.wndMain:FindChild("wnd_EditProfile"):Show(self.wndMain:FindChild("btn_EditProfile"):IsChecked())
+	self.wndMain:FindChild("wnd_LookupProfile"):Show(self.wndMain:FindChild("btn_LookupProfile"):IsChecked())
+	self.wndMain:FindChild("wnd_EditBackground"):Show(self.wndMain:FindChild("btn_EditBackground"):IsChecked())
 end
 
 function PDA:OnDefaultCheck()
@@ -580,16 +646,146 @@ end
 function PDA:OnShowOptions( wndHandler, wndControl )
 	wndControl:FindChild("group_NameplateColors"):Show(false)
 	wndControl:FindChild("input_n_Offset"):SetMinMax(0,100)
-	
-	if self.tPDAOptions then
-		if self.tPDAOptions.bShowMyNameplate then
-			wndControl:FindChild("input_b_ShowPlayerNameplate"):SetCheck(self.tPDAOptions.bShowMyNameplate)
-		end
-		if self.tPDAOptions.nOffset then
-			wndControl:FindChild("input_n_Offset"):SetValue(self.tPDAOptions.nOffset)
-		end
+	wndControl:FindChild("input_b_ShowPlayerNameplate"):SetCheck(self.bShowMyNameplate)
+	if self.tPDAOptions and self.tPDAOptions.nOffset then
+		wndControl:FindChild("input_n_Offset"):SetValue(self.tPDAOptions.nOffset)
 	end
 end
+
+function PDA:ShowOptionsPanel()
+	self.wndMain:FindChild("wnd_EditProfile"):Show(false)
+	self.wndMain:FindChild("wnd_LookupProfile"):Show(false)
+	self.wndMain:FindChild("wnd_EditBackground"):Show(false)
+	self.wndMain:FindChild("wnd_Options"):Show(true)
+	
+end
+
+---- Profile Viewer Methods ----
+
+function PDA:FillProfileList()
+	local tCacheList = RPCore:GetCachedPlayerList()
+	
+	tCacheList:sort()
+	
+	local wndGrid = self.wndMain:FindChild("wnd_LookupProfile:Grid")
+	
+	wndGrid:DeleteAll()
+	
+	for i,v in pairs(tCacheList) do
+		local strIcon
+		local strPlayerName = v
+		local strName = RPCore:GetTrait(strPlayerName, "fullname")
+		local nRace = RPCore:GetTrait(strPlayerName, "race") or Apollo.GetPlayerUnitByName(strPlayerName, ):GetRaceId()
+		local nSex = RPCore:GetTrait(strPlayerName, "sex") or Apollo.GetPlayerUnitByName(strPlayerName, ):GetGender()
+		local nFaction = RPCore:GetTrait(strPlayerName, "faction") or Apollo.GetPlayerUnitByName(strPlayerName, ):GetFaction() or GameLib.CodeEnumFaction.ExilePlayer
+		
+		if nRace == GameLib.CodeEnumRace.Human then
+			if nFaction == GameLib.CodeEnumFaction.DominionPlayer then
+				nSex = nSex + 2
+			end
+		end
+		
+		if nRace and nSex then
+			strIcon = ktRaceSprites[nRace][nSex]
+		else
+			strIcon = "CRB_Tradeskills:sprSchemIntroArt"
+		end
+		
+		local iCurrRow = wndGrid:AddRow("")
+		wndGrid:SetCellLuaData(iCurrRow, 1, strPlayerName)
+		wndGrid:SetCellImage(iCurrRow, 1, strIcon)
+		wndGrid:SetCellText(iCurrRow, 2, strName)
+	end
+	wndGrid:SetSortColumn(2)
+end
+
+function PDA:ShowCharacterSheet(wndControl, wndHandler, iRow, iCol)
+	local strPlayerName = wndControl:GetCellData(iRow, 1)
+	if not self.wndCS then
+		self.wndCS = Apollo.LoadForm(self.xmlDoc, "CharSheetForm", nil, self)
+		self.wndCS:Show(false)
+	end
+
+	self.wndCS:FindChild("wnd_CharSheet"):SetDoc(self:DrawCharacterSheet(strPlayerName))
+	if Apollo.GetPlayerUnitByName(strPlayerName) then
+		self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(Apollo.GetPlayerUnitByName(strPlayerName))
+		self.wndCS:FindChild("wnd_Portrait"):Show(true)
+	else
+		self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(nil)
+		self.wndCS:FindChild("wnd_Portrait"):Show(false)
+	end
+	self.wndCS:Show(true)		
+end
+
+---- Edit History ----
+--[[
+	
+	[*] = bullet point --</T><T Image=""></T>
+	[b] [/b] = bold --</T><T Font="CRB_Interface12_B">  --</T>
+	[i] [/i] = italic --</T><T Font="CRB_Interface12_I"> --</T>
+]]
+
+function PDA:ParseMarkup(strText)
+	
+	local tTags = {
+		["[h1]"] = "<P Font=\"%s\" Align=\"%s\">",
+		["[/h1]"] = "</P>",
+		["[h2]"] = "<P Font=\"%s\" Align=\"%s\">",
+		["[/h2]"] = "</P>",
+		["[h3]"] = "<P Font=\"%s\" Align=\"%s\">",
+		["[/h3]"] = "</P>",
+		["[li]"] = "<P Font=\"%s\" Align=\"%s\">\u25E6 \u2022 •",
+		["[/li]"] = "</P>",
+		["[p]"] = "<P Font=\"%s\" Align=\"%s\">",
+		["[p]"] = "</P>",
+	}
+	
+	for tag, subTag in pairs(tTags) do
+		strText = gsub:strText(tag, subTag)	
+	end
+	local _, nOpenCount = string.gsub(strText, "<P", "")
+	local _, nCloseCount = string.gsub(strText, "/P>", "")
+	
+	if nOpenCount < nCloseCount then
+		local nCloseTagsNeeded = nOpenCount - nCloseCount
+		for i = 1, nCloseTagsNeeded do
+			strText = strText.."</P>"
+		end
+	end
+	
+	return strText
+end
+
+function PDA:InsertTag(wndHandler, wndControl)
+	local wndEditBox = self.wndMain:FindChild("wnd_EditBackground:input_s_History")
+	local ktTagTypes = { "h1", "h2", "h3", "li", "p",}
+	local tagType = string.sub(wndControl:GetText(), 5)
+	local strSelected = wndEditBox:GetSel()
+	if strSelected:len < 1 then
+		wndEditBox:InsertText("\[%s\]\[/%s\]")
+	elseif strSelected:len > 0 then
+		
+	end
+	
+end
+
+function PDA:TestGetSel(wndHandler, wndControl)
+	local tTest = {self.wndMain:FindChild("wnd_EditBackground:input_s_History"):GetSel()}
+	local strTest = table.concat(tTest)
+	Print(strTest)
+end
+
+function PDA:TestInsert(wndHandler, wndControl)
+	self.wndMain:FindChild("wnd_EditBackground:input_s_History"):InsertText("• \u25E6 \u2022 TEST")
+end
+
+-----------------------------------------------------------------------------------------------
+-- PDA Character Sheet Form Functions
+-----------------------------------------------------------------------------------------------
+function PDA:OnCharacterSheetClose(wndHandler, wndControl)
+	self.wndCS:Show(false)
+end
+
 
 -----------------------------------------------------------------------------------------------
 -- PDA Instance
