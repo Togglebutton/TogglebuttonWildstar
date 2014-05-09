@@ -115,12 +115,14 @@ function PDA:OnLoad()
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "PDAEditForm", nil, self)
 	self.wndMain:Show(false)
 	
-	self.wndMain:FindChild("btn_EditProfile"):SetCheck(true)
+	--self.wndMain:FindChild("btn_EditProfile"):SetCheck(true)
 	self.wndMain:FindChild("btn_EditBackground"):Enable(false)
 	
-	self.wndMain:FindChild("wnd_EditProfile"):Show(true)
+	self.wndMain:FindChild("wnd_EditProfile"):Show(false)
+	self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):SetMaxTextLength(250)
 	self.wndMain:FindChild("wnd_LookupProfile"):Show(false)
 	self.wndMain:FindChild("wnd_EditBackground"):Show(false)
+	self.wndMain:FindChild("wnd_EditBackground:input_s_History"):SetMaxTextLength(2500)
 	self.wndMain:FindChild("wnd_Options"):Show(false)
 	self.wndMain:FindChild("wnd_Portrait"):Show(false)
 	
@@ -130,7 +132,6 @@ function PDA:OnLoad()
 	Apollo.RegisterEventHandler("UnitDestroyed","OnUnitDestroyed",self)
 	Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
 	Apollo.RegisterEventHandler("ToggleAddon_PDA", "OnPDAOn", self)
-	--Apollo.RegisterEventHandler("VarChange_FrameCount", "OnFrame", self)
 	
 	Apollo.RegisterTimerHandler("PDA_RefreshTimer","RefreshPlates",self)
 	
@@ -255,7 +256,6 @@ function PDA:RefreshPlates()
 end
 
 function PDA:DrawNameplate(tNameplate)
-	local unitPlayer = GameLib.GetPlayerUnit()
 	local unitOwner = tNameplate.unitOwner
 	local wndNameplate = tNameplate.wndNameplate
 	
@@ -415,7 +415,13 @@ function PDA:DrawCharacterSheet(unitName)
 
 	if (rpFullname ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Name, tCSColors.strLabelColor, tCSColors.strEntryColor, rpFullname)) end
 	if (rpTitle ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Title,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpTitle)) end
-	if (rpRace ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Species,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpRace)) end
+	if (rpRace ~= nil) then 
+		if type(rpRace) == "string" then
+			xmlCS:AddLine(string.format(ktCSstrings.Species,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpRace))
+		elseif type(rpRace) == "number" then
+			xmlCS:AddLine(string.format(ktCSstrings.Species,  tCSColors.strLabelColor, tCSColors.strEntryColor, karRaceToString[rpRace]))
+		end
+	end
 	if (rpGender ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Gender,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpGender)) end
 	if (rpAge ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Age,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpAge)) end
 	if (rpHeight ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Height,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpHeight)) end
@@ -530,11 +536,13 @@ function PDA:OnEditOK()
 	local strAge = wndEditProfile:FindChild("input_s_Age"):GetText()
 	local strJob = wndEditProfile:FindChild("input_s_Job"):GetText()
 	local strGender = wndEditProfile:FindChild("input_s_Gender"):GetText()
+	local nRace = GameLib.GetPlayerUnit():GetRaceId()
 	local nSex = GameLib.GetPlayerUnit():GetGender()
 	local nFaction = GameLib.GetPlayerUnit():GetFaction()
 	
 	RPCore:SetLocalTrait("fullname",strFullname)
 	RPCore:SetLocalTrait("sex", nSex)
+	RPCore:SetLocalTrait("race", nRace)
 	RPCore:SetLocalTrait("faction", nFaction)
 	
 	if string.len(tostring(strCharTitle)) > 1 then RPCore:SetLocalTrait("title",strCharTitle) else RPCore:SetLocalTrait("title",nil) end
@@ -665,7 +673,9 @@ end
 function PDA:FillProfileList()
 	local tCacheList = RPCore:GetCachedPlayerList()
 	
-	tCacheList:sort()
+	if #tCacheList > 1 then
+		tCacheList = table.sort(tCacheList)
+	end
 	
 	local wndGrid = self.wndMain:FindChild("wnd_LookupProfile:Grid")
 	
@@ -675,9 +685,9 @@ function PDA:FillProfileList()
 		local strIcon
 		local strPlayerName = v
 		local strName = RPCore:GetTrait(strPlayerName, "fullname")
-		local nRace = RPCore:GetTrait(strPlayerName, "race") or Apollo.GetPlayerUnitByName(strPlayerName, ):GetRaceId()
-		local nSex = RPCore:GetTrait(strPlayerName, "sex") or Apollo.GetPlayerUnitByName(strPlayerName, ):GetGender()
-		local nFaction = RPCore:GetTrait(strPlayerName, "faction") or Apollo.GetPlayerUnitByName(strPlayerName, ):GetFaction() or GameLib.CodeEnumFaction.ExilePlayer
+		local nRace = RPCore:GetTrait(strPlayerName, "race") or Apollo.GetPlayerUnitByName(strPlayerName):GetRaceId()
+		local nSex = RPCore:GetTrait(strPlayerName, "sex") or Apollo.GetPlayerUnitByName(strPlayerName):GetGender()
+		local nFaction = RPCore:GetTrait(strPlayerName, "faction") or Apollo.GetPlayerUnitByName(strPlayerName):GetFaction() or GameLib.CodeEnumFaction.ExilePlayer
 		
 		if nRace == GameLib.CodeEnumRace.Human then
 			if nFaction == GameLib.CodeEnumFaction.DominionPlayer then
@@ -734,7 +744,7 @@ function PDA:ParseMarkup(strText)
 		["[/h2]"] = "</P>",
 		["[h3]"] = "<P Font=\"%s\" Align=\"%s\">",
 		["[/h3]"] = "</P>",
-		["[li]"] = "<P Font=\"%s\" Align=\"%s\">\u25E6 \u2022 •",
+		["[li]"] = "<P Font=\"%s\" Align=\"%s\">  ●  ",
 		["[/li]"] = "</P>",
 		["[p]"] = "<P Font=\"%s\" Align=\"%s\">",
 		["[p]"] = "</P>",
@@ -756,27 +766,69 @@ function PDA:ParseMarkup(strText)
 	return strText
 end
 
+
 function PDA:InsertTag(wndHandler, wndControl)
 	local wndEditBox = self.wndMain:FindChild("wnd_EditBackground:input_s_History")
-	local ktTagTypes = { "h1", "h2", "h3", "li", "p",}
-	local tagType = string.sub(wndControl:GetText(), 5)
-	local strSelected = wndEditBox:GetSel()
-	if strSelected:len < 1 then
-		wndEditBox:InsertText("\[%s\]\[/%s\]")
-	elseif strSelected:len > 0 then
-		
+	local tagType = string.sub(wndControl:GetName(), 5)
+	local tSelected = wndEditBox:GetSel()
+	
+	if (tSelected.cpEnd - tSelected.cpBegin ) > 0 then
+		local strSelectedText = string.sub(wndEditBox:GetText(), tSelected.cpBegin, tSelected.cpEnd)
+		wndEditBox:InsertText(string.format("\[%s\]%s\[/%s\]",tagType, strSelectedText, tagType))
+	else
+		wndEditBox:InsertText(string.format("\[%s\]\[/%s\]",tagType, tagType))
+		wndEditBox:SetSel(string.len(wndEditBox:GetText()) - (string.len(tagType) + 2), string.len(wndEditBox:GetText()) - (string.len(tagType) + 2))
 	end
 	
 end
 
+function PDA:OnHistoryReturn(wndHandler, wndControl, strText)
+	Print(wndControl:GetName())
+	Print(strText)
+	wndControl:InsertText("\n\[p\] \[/p\]")
+	wndControl:SetSel(string.len(wndControl:GetText()) - 4, string.len(wndControl:GetText()) - 4)
+end
+
 function PDA:TestGetSel(wndHandler, wndControl)
-	local tTest = {self.wndMain:FindChild("wnd_EditBackground:input_s_History"):GetSel()}
-	local strTest = table.concat(tTest)
-	Print(strTest)
+	local tTest = self.wndMain:FindChild("wnd_EditBackground:input_s_History"):GetSel()
+	local strTest = self.wndMain:FindChild("wnd_EditBackground:input_s_History"):GetText()
 end
 
 function PDA:TestInsert(wndHandler, wndControl)
-	self.wndMain:FindChild("wnd_EditBackground:input_s_History"):InsertText("• \u25E6 \u2022 TEST")
+	self.wndMain:FindChild("wnd_EditBackground:input_s_History"):InsertText("●   TEST")
+end
+
+function PDA:StringSubUTF8(str, startChar, numChars)
+-- modified from http://wowprogramming.com/snippets/UTF-8_aware_stringsub_7
+	local function chsize(currChar)
+		if not currChar then
+			return 0
+		elseif currChar > 240 then
+			return 4
+		elseif currChar > 225 then
+			return 3
+		elseif currChar > 192 then
+			return 2
+		else
+			return 1
+		end
+	end
+
+	local startIndex = 1
+	while startChar > 1 do
+		local char = string.byte(str, startIndex)
+		startIndex = startIndex + chsize(char)
+		startChar = startChar - 1
+	end
+
+	local currentIndex = startIndex
+
+	while numChars > 0 and currentIndex <= #str do
+		local char = string.byte(str, currentIndex)
+		currentIndex = currentIndex + chsize(char)
+		numChars = numChars -1
+	end
+	return str:sub(startIndex, currentIndex - 1)
 end
 
 -----------------------------------------------------------------------------------------------

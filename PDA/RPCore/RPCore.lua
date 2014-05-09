@@ -287,6 +287,7 @@ function RPCore:OnLoad()
 	Apollo.RegisterTimerHandler("RPCore_CacheClean","CleanupCache",self)
 	
 	Apollo.CreateTimer("RPCore_RCMP_Setup",1,false) 
+	Apollo.CreateTimer("RPCore_CacheClean", 60, true)
 end 
 
 function RPCore:OnSave(eLevel)
