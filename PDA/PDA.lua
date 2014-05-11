@@ -11,38 +11,19 @@ require "GameLib"
 local PDA = {} 
 local RPCore = _G["GeminiPackages"]:GetPackage("RPCore-1.1")
 
-
 -----------------------------------------------------------------------------------------------
 -- Constants
 -----------------------------------------------------------------------------------------------
 -- e.g. local kiExampleVariableMax = 999
 
-local ktRPColors = {
-	[0] = "ffffffff", -- white
-	[1] = "ffffff00", --yellow
-	[2] = "ff0000ff", --blue
-	[3] = "ff00ff00", --green
-	[4] = "ffff0000", --red
-	[5] = "ff800080", --purple
-	[6] = "ff00ffff", --cyan
-	[7] = "ffff00ff", --magenta
-}
-
-local knTargetRange = 400
-
 local ktRaceSprites = {
 	[GameLib.CodeEnumRace.Human] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_HuM_ExFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_HuF_ExFlyby", [2] = "CRB_CharacterCreateSprites:btnCharC_RG_HuM_DomFlyby", [3] = "CRB_CharacterCreateSprites:btnCharC_RG_HuF_DomFlyby"},
-	[GameLib.CodeEnumRace.Granok] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_GrMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_GrFFlyby"},--
-	[GameLib.CodeEnumRace.Aurin] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_AuMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_AuFFlyby"},--
-	[GameLib.CodeEnumRace.Draken] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_DrMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_DrFFlyby"},--
-	[GameLib.CodeEnumRace.Mechari] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_MeMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_MeFFlyby"},--
-	[GameLib.CodeEnumRace.Chua] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_ChuFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_ChuFlyby", [2] = "CRB_CharacterCreateSprites:btnCharC_RG_ChuFlyby"},--
-	[GameLib.CodeEnumRace.Mordesh] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_MoMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_MoMFlyby"},--
-}
-
-local ktCSColors = {
-	strLabelColor = "UI_TextHoloBodyHighlight",
-	strEntryColor = "UI_TextHoloTitle",
+	[GameLib.CodeEnumRace.Granok] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_GrMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_GrFFlyby"},
+	[GameLib.CodeEnumRace.Aurin] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_AuMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_AuFFlyby"},
+	[GameLib.CodeEnumRace.Draken] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_DrMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_DrFFlyby"},
+	[GameLib.CodeEnumRace.Mechari] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_MeMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_MeFFlyby"},
+	[GameLib.CodeEnumRace.Chua] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_ChuFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_ChuFlyby"},
+	[GameLib.CodeEnumRace.Mordesh] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_MoMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_MoMFlyby"},
 }
 
 local karRaceToString =
@@ -56,34 +37,121 @@ local karRaceToString =
 	[GameLib.CodeEnumRace.Mordesh] 	= Apollo.GetString("CRB_Mordesh"),
 }
 
-local ktCSstrings = {
-	Name = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Name: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
-	Species = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Species: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
-	Gender = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Gender: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
-	Age = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Age: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
-	Height = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Height: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
-	Weight = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Weight: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
-	Title = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Title: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
-	Job = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Occupation: </T><T font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</T>",
-	Description = "<T font=\"CRB_Interface12_BO\" TextColor=\"%s\">Description: \n</T><P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P>",
-}
 local enumGender = {
 	[0] = Apollo.GetString("CRB_Male"),
 	[1] = Apollo.GetString("CRB_Female"),
 	[2] = Apollo.GetString("CRB_UnknownType"),
 }
 
-local knDescriptionMax = 250
-local knBioMaxMax = 2500
+local ktCSstrings = {
+	Name = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Name: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
+	Species = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Species: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
+	Gender = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Gender: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
+	Age = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Age: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
+	Height = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Height: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
+	Weight = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Weight: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
+	Title = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Title: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
+	Job = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Occupation: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
+	Description = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Description: <BR /><P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
+}
 
---[[
-	local pixieClickBar = wndClickTimeFrame:GetPixieInfo(1)
-	pixieClickBar.cr = crBarColor
-	wndClickTimeFrame:UpdatePixie(1, pixieClickBar)
-]]
+local ktMarkupStyles = {
+	{tag = "h1", font = "CRB_Interface14_BBO", color = "UI_TextHoloTitle", align = "Center"},
+	{tag = "h2", font = "CRB_Interface12_BO", color = "UI_TextHoloTitle", align = "Left"},
+	{tag = "h3", font = "CRB_Interface12_I", color = "UI_TextHoloBodyHighlight", align = "Left"},
+	{tag = "p", font = "CRB_Interface12", color = "UI_TextHoloBodyHighlight", align = "Left"},
+	{tag = "li", font = "CRB_Interface12", color = "UI_TextHoloBodyHighlight", align = "Left"},
+}
+
+local knDescriptionMax = 250
+local knBioMax = 2500
+local knTargetRange = 400
+
+local ktPDAOptions = {
+	nOffset = 0,
+	tRPColors = {
+		[0] = "ffffffff", -- white
+		[1] = "ffffff00", --yellow
+		[2] = "ff0000ff", --blue
+		[3] = "ff00ff00", --green
+		[4] = "ffff0000", --red
+		[5] = "ff800080", --purple
+		[6] = "ff00ffff", --cyan
+		[7] = "ffff00ff", --magenta
+	},
+	tCSColors = {
+		strLabelColor = "UI_TextHoloBodyHighlight",
+		strEntryColor = "UI_TextHoloTitle",
+	},
+	bShowMyNameplate = true,
+	tMarkupStyles = {},
+}
+
+
+local function BuildFontDropDown(self, wndButton)
+	local wndDDList = wndButton:FindChild("ddList")
+	local tGameFontList = Apollo.GetGameFonts()
+	local tFontList = {}
+	
+	for i, v in pairs(tGameFontList) do
+		if string.find(v.name, "CRB_Interface%d?%d") then
+			table.insert(tFontList, v.name)
+		elseif string.find(v.name, "CRB_Header%d?%d") then
+			table.insert(tFontList, v.name)
+		end
+	end		
+	table.sort(tFontList)
+	-- from hhtp://lua-users.org/wiki/TableUtils
+	
+	local function table_count(tt, item)
+	  local count
+	  count = 0
+	  for ii,xx in pairs(tt) do
+		if item == xx then count = count + 1 end
+	  end
+	  return count
+	end
+	
+	local function table_unique(tt)
+	  local newtable
+	  newtable = {}
+	  for ii,xx in ipairs(tt) do
+		if(table_count(newtable, xx) == 0) then
+		  newtable[#newtable+1] = xx
+		end
+	  end
+	  return newtable
+	end
+	
+	tFontList = table_unique(tFontList)
+	
+	for i, v in pairs(tFontList) do
+		local wnd = Apollo.LoadForm(self.xmlDoc, "DropDownItemForm", wndDDList, self)
+		wnd:SetText(v)
+		wnd:SetName("btn_"..v)
+		wnd:SetFont(v)
+	end
+	
+	wndDDList:ArrangeChildrenVert()
+	wndDDList:Show(false, true)
+end
+
+local function BuildHeadingMenu(self, strHeadingType)
+
+	local wnd = Apollo.LoadForm(self.xmlDoc, "HeaderOptionsForm", self.wndMain:FindChild("wnd_Options:wnd_ScrollFrame:group_BioMarkupStyles") , self)
+	wnd:FindChild("wnd_label"):SetText(strHeadingType)
+	wnd:SetName("wnd_"..strHeadingType)
+	wnd:FindChild("btn_DDAlign:ddList"):Show(false)
+	
+	local wndButton = wnd:FindChild("btn_DDFont")
+	BuildFontDropDown(self, wndButton)
+	
+end
+
 -----------------------------------------------------------------------------------------------
 -- Initialization
 -----------------------------------------------------------------------------------------------
+
 function PDA:new(o)
     o = o or {}
     setmetatable(o, self)
@@ -95,6 +163,7 @@ function PDA:new(o)
 	o.arWnd2Nameplate = {}
 	o.nMaxRange = 400
 	o.bShowMyNameplate = true
+	o.tPDAOptions = ktPDAOptions
     return o
 end
 
@@ -119,12 +188,18 @@ function PDA:OnLoad()
 	self.wndMain:FindChild("btn_EditBackground"):Enable(false)
 	
 	self.wndMain:FindChild("wnd_EditProfile"):Show(false)
-	self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):SetMaxTextLength(250)
+	self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):SetMaxTextLength(knDescriptionMax)
 	self.wndMain:FindChild("wnd_LookupProfile"):Show(false)
 	self.wndMain:FindChild("wnd_EditBackground"):Show(false)
-	self.wndMain:FindChild("wnd_EditBackground:input_s_History"):SetMaxTextLength(2500)
+	self.wndMain:FindChild("wnd_EditBackground:input_s_History"):SetMaxTextLength(knBioMax)
 	self.wndMain:FindChild("wnd_Options"):Show(false)
 	self.wndMain:FindChild("wnd_Portrait"):Show(false)
+	
+	for i,v in pairs(ktMarkupStyles) do
+		BuildHeadingMenu(self, tostring(v.tag))
+	end
+	
+	self.wndMain:FindChild("wnd_Options:wnd_ScrollFrame:group_BioMarkupStyles"):ArrangeChildrenVert(1)
 	
 	Apollo.LoadSprites("PDA_Sprites.xml")
 	
@@ -161,9 +236,10 @@ end
 
 function PDA:OnRestore(eLevel, tData)
 
-	if (tData.tPDAoptions ~= nil) then
-		self.tPDAOptions = tData.tPDAOptions
-		if self.tPDAOptions.bShowMyNameplate then self.bShowMyNameplate = self.tPDAOptions.bShowMyNameplate end
+	if (tData.tPDAOptions ~= nil) then
+		for i,v in pairs(tData.tPDAOptions) do
+			self.tPDAOptions[i] = v
+		end
 	end
 	
 end
@@ -178,6 +254,7 @@ end
 function PDA:OnUnitCreated(unitNew)
 	
 	if unitNew:IsACharacter() then
+		--Print(unitNew:GetName())
 		local rpVersion, rpAddons = RPCore:QueryVersion(unitNew:GetName())
 		if rpVersion ~= nil then
 			--Print("RPCore enabled Unit found.")
@@ -211,9 +288,16 @@ function PDA:OnUnitCreated(unitNew)
 end 
 
 function PDA:OnUnitDestroyed(unitOwner)
-	if unitOwner:IsACharacter() then
+	if unitOwner:IsInVehicle() then
+		local strUnitName = unitOwner:GetUnitOwner():GetName()
+		local wndNameplate = self.arUnit2Nameplate[strUnitName].wndNameplate
 		
+		wndNameplate:SetUnit(unitOwner:GetUnitOwner())
+		
+	elseif unitOwner:IsACharacter() then
 		local strUnitName = unitOwner:GetName()
+		--local mountName = unitOwner:GetUnitOwner():GetName()
+		--if mountName == strUnitName then
 		if self.arUnit2Nameplate[strUnitName] == nil then
 			return
 		end
@@ -273,7 +357,7 @@ function PDA:DrawNameplate(tNameplate)
 		return
 	end
 	
-	if self.tPDAOptions and self.tPDAOptions.nOffset then
+	if self.tPDAOptions.nOffset then
 		if tNameplate.nOffset ~= self.tPDAOptions.nOffset then
 			tNameplate.nOffset = self.tPDAOptions.nOffset
 			local nL, nT, nR, nB = wndNameplate:GetAnchorOffsets()
@@ -282,7 +366,7 @@ function PDA:DrawNameplate(tNameplate)
 	end
 		
 	if unitOwner:IsMounted() and wndNameplate:GetUnit() == unitOwner then
-		wndNameplate:SetUnit(tNameplate.unitOwner:GetUnitMount(), 1)
+		wndNameplate:SetUnit(unitOwner:GetUnitMount(), 1)
     elseif not unitOwner:IsMounted() and wndNameplate:GetUnit() ~= unitOwner then
 		wndNameplate:SetUnit(unitOwner, 1)
     end
@@ -309,14 +393,10 @@ function PDA:DrawRPNamePlate(tNameplate)
 	local xmlNamePlate = XmlDoc:new()
 	local wndNameplate = tNameplate.wndNameplate
 	local wndName = wndNameplate:FindChild("wnd_Name")
-	
-	if self.tPDAOptions and self.tPDAOptions.tRPColors and self.tPDAOptions.tCSColors then
-		tRPColors = self.tPDAOptions.tRPColors
-		tCSColors = self.tPDAOptions.tCSColors
-	else
-		tRPColors = ktRPColors
-		tCSColors = ktCSColors
-	end
+
+	tRPColors = self.tPDAOptions.tRPColors
+	tCSColors = self.tPDAOptions.tCSColors
+
 	
 	rpFullname = RPCore:GetTrait(unitName,"fullname") or unitName
 	rpTitle = RPCore:FetchTrait(unitName,"title")
@@ -325,7 +405,7 @@ function PDA:DrawRPNamePlate(tNameplate)
 	if (rpFullname ~= nil) then xmlNamePlate:AddLine(rpFullname, tCSColors.strEntryColor, "CRB_Interface12_BO", "Center")  end
 	if (rpTitle ~= nil) then xmlNamePlate:AddLine(rpTitle, tCSColors.strLabelColor, "CRB_Interface8","Center") end
 	wndName:SetDoc(xmlNamePlate)
-	if rpStatus ~= nil then wndNameplate:FindChild("btn_RP"):SetBGColor(tRPColors[rpStatus]) end
+	if rpStatus ~= nil then wndNameplate:FindChild("btn_RP"):SetBGColor(self.tPDAOptions.tRPColors[rpStatus]) end
 	wndNameplate:Show(true)
 end
 
@@ -344,7 +424,7 @@ function PDA:HelperVerifyVisibilityOptions(tNameplate)
 	if unitOwner:GetType() == "Player" then bShowNameplate = true end
 	
 	if unitOwner:IsThePlayer() then
-		if self.bShowMyNameplate == true and not unitOwner:IsDead() then
+		if self.tPDAOptions.bShowMyNameplate == true and not unitOwner:IsDead() then
 			bShowNameplate = true
 		else
 			bShowNameplate = false
@@ -397,10 +477,8 @@ function PDA:DrawCharacterSheet(unitName)
 	local xmlCS = XmlDoc.new()
 	local unit = GameLib.GetPlayerUnitByName(unitName)
 	
-	if self.tPDAOptions and self.tPDAOptions.tCSColors then
-		tCSColors = self.tPDAOptions.tCSColors
-	else
-		tCSColors = ktCSColors
+	if not self.tPDAOptions.tCSColors then
+		self.tPDAOptions.tCSColors = ktCSColors
 	end
 	
 	rpFullname = RPCore:GetTrait(unitName,"fullname") or unitName
@@ -413,21 +491,21 @@ function PDA:DrawCharacterSheet(unitName)
 	rpGender = RPCore:GetTrait(unitName, "gender") or enumGender[unit:GetGender()]
 	rpJob = RPCore:GetTrait(unitName,"job") or GameLib.CodeEnumClass[unit:GetClassId()]
 
-	if (rpFullname ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Name, tCSColors.strLabelColor, tCSColors.strEntryColor, rpFullname)) end
-	if (rpTitle ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Title,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpTitle)) end
+	if (rpFullname ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Name, self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpFullname)) end
+	if (rpTitle ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Title,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpTitle)) end
 	if (rpRace ~= nil) then 
 		if type(rpRace) == "string" then
-			xmlCS:AddLine(string.format(ktCSstrings.Species,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpRace))
+			xmlCS:AddLine(string.format(ktCSstrings.Species,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpRace))
 		elseif type(rpRace) == "number" then
-			xmlCS:AddLine(string.format(ktCSstrings.Species,  tCSColors.strLabelColor, tCSColors.strEntryColor, karRaceToString[rpRace]))
+			xmlCS:AddLine(string.format(ktCSstrings.Species,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, karRaceToString[rpRace]))
 		end
 	end
-	if (rpGender ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Gender,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpGender)) end
-	if (rpAge ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Age,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpAge)) end
-	if (rpHeight ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Height,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpHeight)) end
-	if (rpWeight ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Weight,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpWeight)) end
-	if (rpJob ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Job,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpJob)) end
-	if (rpShortDesc ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Description,  tCSColors.strLabelColor, tCSColors.strEntryColor, rpShortDesc)) end
+	if (rpGender ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Gender,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpGender)) end
+	if (rpAge ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Age,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpAge)) end
+	if (rpHeight ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Height,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpHeight)) end
+	if (rpWeight ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Weight,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpWeight)) end
+	if (rpJob ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Job,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpJob)) end
+	if (rpShortDesc ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Description,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpShortDesc)) end
 	
 	return xmlCS
 end
@@ -581,54 +659,26 @@ end
 
 ---- Options Methods ----
 function PDA:OnOptionsOK()
-	local wndOptions = self.wndMain:FindChild("wnd_Options")
-	local bShowMyNameplate = wndOptions:FindChild("input_b_ShowPlayerNameplate"):IsChecked()
+	local wndOptions = self.wndMain:FindChild("wnd_Options:wnd_ScrollFrame")
 	local bCustomColor = wndOptions:FindChild("group_NameplateColors"):GetRadioSel("ColorType") == 2
 	local nOffset = wndOptions:FindChild("input_n_Offset"):GetValue()
 	
 	if bCustomColor == true then
-		if not self.tPDAOptions then
-			self.tPDAOptions = {}
-		end
-		self.tPDAOptions.tRPColors = {}
-		self.tPDAOptions.tCSColors = {}
+		self.tPDAOptions.tRPColors = {
+			
+		}
+		self.tPDAOptions.tCSColors = {
+		
+		}
 	elseif bCustomColor == false then
-		if not self.tPDAOptions then
-			self.tPDAOptions = {}
-		end
-		self.tPDAOptions.tRPColors = nil
-		self.tPDAOptions.tCSColors = nil
+		self.tPDAOptions.tRPColors = ktPDAOptions.tRPColors
+		self.tPDAOptions.tCSColors = ktPDAOptions.tCSColors
 	end	
 	
-	if nOffset > 0 then
-		if not self.tPDAOptions then
-			self.tPDAOptions = {}
-		end
-		self.tPDAOptions.nOffset = nOffset
-	else
-		if not self.tPDAOptions then
-			self.tPDAOptions = {}
-		end
-		self.tPDAOptions.nOffset = nil
-	end
-	
-	if bShowMyNameplate == true then
-		if not self.tPDAOptions then
-			self.tPDAOptions = {}
-		end
-		self.tPDAOptions.bShowMyNameplate = true
-	else
-		if not self.tPDAOptions then
-			self.tPDAOptions = {}
-		end
-		self.tPDAOptions.bShowMyNameplate = nil
-	end
-	
-	if #self.tPDAOptions < 1 then
-		self.tPDAOptions = nil
-	end
-	
-	wndOptions:Show(false) -- hide the window
+	self.tPDAOptions.nOffset = nOffset
+	self.tPDAOptions.bShowMyNameplate = wndOptions:FindChild("input_b_ShowPlayerNameplate"):IsChecked()
+
+	wndOptions:GetParent():Show(false) -- hide the window
 	local button = self.wndMain:GetRadioSelButton("PDATab")
 	self.wndMain:FindChild("wnd_EditProfile"):Show(self.wndMain:FindChild("btn_EditProfile"):IsChecked())
 	self.wndMain:FindChild("wnd_LookupProfile"):Show(self.wndMain:FindChild("btn_LookupProfile"):IsChecked())
@@ -644,19 +694,22 @@ function PDA:OnOptionsCancel()
 end
 
 function PDA:OnDefaultCheck()
-	self.wndOptions:FindChild("group_NameplateColors:group_CustomColors"):Show(false)
+	self.wndMain:FindChild("wnd_Options:wnd_ScrollFrame:group_NameplateColors:group_CustomColors"):Show(false)
 end
 
 function PDA:OnCustomCheck()
-	self.wndOptions:FindChild("group_NameplateColors:group_CustomColors"):Show(true)
+	self.wndMain:FindChild("wnd_Options:wnd_ScrollFrame:group_NameplateColors:group_CustomColors"):Show(true)
 end
 
 function PDA:OnShowOptions( wndHandler, wndControl )
-	wndControl:FindChild("group_NameplateColors"):Show(false)
-	wndControl:FindChild("input_n_Offset"):SetMinMax(0,100)
-	wndControl:FindChild("input_b_ShowPlayerNameplate"):SetCheck(self.bShowMyNameplate)
-	if self.tPDAOptions and self.tPDAOptions.nOffset then
-		wndControl:FindChild("input_n_Offset"):SetValue(self.tPDAOptions.nOffset)
+	if wndControl == wndHandler then
+		--wndControl:FindChild("group_NameplateColors"):Show(false)
+		wndControl:FindChild("input_n_Offset"):SetMinMax(0,100)
+		wndControl:FindChild("input_n_Offset"):SetValue(self.tPDAOptions.nOffset or 0)
+		
+		--local wndColors = wndControl:FindChild()
+		
+		wndControl:FindChild("input_b_ShowPlayerNameplate"):SetCheck(self.tPDAOptions.bShowMyNameplate or true)
 	end
 end
 
@@ -668,14 +721,28 @@ function PDA:ShowOptionsPanel()
 	
 end
 
+function PDA:OptionsDDClick(wndHandler, wndControl)
+	local bDDListShown = wndControl:FindChild("ddList"):IsShown()
+	wndControl:FindChild("ddList"):Show(not (bDDListShown))
+end
+
+function PDA:OptionsDDListItemClick(wndHandler, wndControl)
+	local ddList = wndControl:GetParent()
+	local ddButton = ddList:GetParent()
+	
+	ddButton:SetText(wndControl:GetText())
+	ddList:Show(false)
+	
+end
 ---- Profile Viewer Methods ----
 
 function PDA:FillProfileList()
 	local tCacheList = RPCore:GetCachedPlayerList()
 	
 	if #tCacheList > 1 then
-		tCacheList = table.sort(tCacheList)
+		table.sort(tCacheList)
 	end
+	
 	
 	local wndGrid = self.wndMain:FindChild("wnd_LookupProfile:Grid")
 	
@@ -684,18 +751,27 @@ function PDA:FillProfileList()
 	for i,v in pairs(tCacheList) do
 		local strIcon
 		local strPlayerName = v
-		local strName = RPCore:GetTrait(strPlayerName, "fullname")
-		local nRace = RPCore:GetTrait(strPlayerName, "race") or Apollo.GetPlayerUnitByName(strPlayerName):GetRaceId()
-		local nSex = RPCore:GetTrait(strPlayerName, "sex") or Apollo.GetPlayerUnitByName(strPlayerName):GetGender()
-		local nFaction = RPCore:GetTrait(strPlayerName, "faction") or Apollo.GetPlayerUnitByName(strPlayerName):GetFaction() or GameLib.CodeEnumFaction.ExilePlayer
+		local unit = GameLib.GetPlayerUnitByName(strPlayerName)
+		local nRace, nSex, nFaction
 		
-		if nRace == GameLib.CodeEnumRace.Human then
-			if nFaction == GameLib.CodeEnumFaction.DominionPlayer then
-				nSex = nSex + 2
-			end
+		local strName = RPCore:GetTrait(strPlayerName, "fullname")
+		
+		if unit then
+			nRace = unit:GetRaceId() or "Unknown"
+			nSex = unit:GetGender() or "Unknown"
+			nFaction = unit:GetFaction() or  GameLib.CodeEnumFaction.ExilePlayer
+		else
+			nRace = RPCore:GetTrait(strPlayerName, "race") or "Unknown"
+			nSex = RPCore:GetTrait(strPlayerName, "sex") or "Unknown"
+			nFaction = RPCore:GetTrait(strPlayerName, "faction") or  GameLib.CodeEnumFaction.ExilePlayer
 		end
 		
-		if nRace and nSex then
+		if type(nRace) == "number" and type(nSex) == "number" then
+			if nRace == GameLib.CodeEnumRace.Human then
+				if nFaction == GameLib.CodeEnumFaction.DominionPlayer then
+					nSex = nSex + 2
+				end
+			end
 			strIcon = ktRaceSprites[nRace][nSex]
 		else
 			strIcon = "CRB_Tradeskills:sprSchemIntroArt"
@@ -705,6 +781,7 @@ function PDA:FillProfileList()
 		wndGrid:SetCellLuaData(iCurrRow, 1, strPlayerName)
 		wndGrid:SetCellImage(iCurrRow, 1, strIcon)
 		wndGrid:SetCellText(iCurrRow, 2, strName)
+		Print(v)
 	end
 	wndGrid:SetSortColumn(2)
 end
@@ -717,8 +794,8 @@ function PDA:ShowCharacterSheet(wndControl, wndHandler, iRow, iCol)
 	end
 
 	self.wndCS:FindChild("wnd_CharSheet"):SetDoc(self:DrawCharacterSheet(strPlayerName))
-	if Apollo.GetPlayerUnitByName(strPlayerName) then
-		self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(Apollo.GetPlayerUnitByName(strPlayerName))
+	if Gamelib.GetPlayerUnitByName(strPlayerName) then
+		self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(Gamelib.GetPlayerUnitByName(strPlayerName))
 		self.wndCS:FindChild("wnd_Portrait"):Show(true)
 	else
 		self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(nil)
@@ -750,8 +827,18 @@ function PDA:ParseMarkup(strText)
 		["[p]"] = "</P>",
 	}
 	
-	for tag, subTag in pairs(tTags) do
-		strText = gsub:strText(tag, subTag)	
+	for i, v in pairs(ktMarkupStyles) do
+		local strOpenTag = string.format("[%s]",v.tag)
+		local strCloseTag = string.format("[/%s]",v.tag)
+		local strSubTagOpen
+		if v.tag == "li" then
+			strSubTagOpen= string.format("<P Font=\"%s\" Align=\"%s\" TextColor=\"%s\">  ●  ",v.font, v.align, v.color)
+		else
+			strSubTagOpen= string.format("<P Font=\"%s\" Align=\"%s\" TextColor=\"%s\">",v.font, v.align, v.color)
+		end
+		local strSubTagClose = "</P>"
+		strText = gsub:strText(strOpenTag, strSubTagOpen)
+		strText = gsub:strText(strCloseTag, strSubTagClose)
 	end
 	local _, nOpenCount = string.gsub(strText, "<P", "")
 	local _, nCloseCount = string.gsub(strText, "/P>", "")

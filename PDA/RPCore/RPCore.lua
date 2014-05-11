@@ -832,8 +832,9 @@ function RPCore:Stats()
 end 
 
 function RPCore:GetCachedPlayerList()
+	Print("Retrieving Cached Player List")
 	local tCachedPlayers = {}
-	for strPlayerName,_ in pairs(self.tCachedPlayerData) do tCachedPlayers.insert(strPlayerName) end
+	for strPlayerName,_ in pairs(self.tCachedPlayerData) do table.insert(tCachedPlayers,strPlayerName) end
 	return tCachedPlayers
 end
 
