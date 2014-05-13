@@ -862,5 +862,6 @@ function RPCore:RegisterAddonProtocolHandler(strAddonProtocol,fHandler)
 end 
 
 _G["GeminiPackages"]:NewPackage(RPCore,"RPCore-1.1",1)
-
 RPCore:Initialize()
+
+--RPCore:OnLoad()
