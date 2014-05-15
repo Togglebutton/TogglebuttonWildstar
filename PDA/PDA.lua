@@ -1,6 +1,7 @@
 -----------------------------------------------------------------------------------------------
 -- 			PDA: Personnel Data Accessor
--- 		
+-- 			By: Togglebutton
+--			Thanks to: Sinalot, PacketDancer, Draftomatic
 -----------------------------------------------------------------------------------------------
 require "Window"
 require "GameLib"
@@ -46,7 +47,8 @@ local karGenderToString =
 	[2] = Apollo.GetString("CRB_UnknownType"),
 }
 
-local ktCSstrings = {
+local ktCSstrings =
+{
 	Name = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Name: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
 	Species = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Species: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
 	Gender = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Gender: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
@@ -58,20 +60,14 @@ local ktCSstrings = {
 	Description = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Description: <BR /><P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
 }
 
-local ktMarkupStyles = {
-	{tag = "h1", font = "CRB_Interface14_BBO", color = "UI_TextHoloTitle", align = "Center"},
-	{tag = "h2", font = "CRB_Interface12_BO", color = "UI_TextHoloTitle", align = "Left"},
-	{tag = "h3", font = "CRB_Interface12_I", color = "UI_TextHoloBodyHighlight", align = "Left"},
-	{tag = "p", font = "CRB_Interface12", color = "UI_TextHoloBodyHighlight", align = "Left"},
-	{tag = "li", font = "CRB_Interface12", color = "UI_TextHoloBodyHighlight", align = "Left"},
-}
-
 local knDescriptionMax = 250
 local knBioMax = 2500
 local knTargetRange = 400
 
-local ktPDAOptions = {
+local ktPDAOptions =
+{
 	nOffset = 0,
+	bShowMyNameplate = true,
 	tRPColors = {
 		[0] = "ffffffff", -- white
 		[1] = "ffffff00", --yellow
@@ -86,8 +82,13 @@ local ktPDAOptions = {
 		strLabelColor = "UI_TextHoloBodyHighlight",
 		strEntryColor = "UI_TextHoloTitle",
 	},
-	bShowMyNameplate = true,
-	tMarkupStyles = {},
+	tMarkupStyles = {
+		{tag = "h1", font = "CRB_Interface14_BBO", color = "UI_TextHoloTitle", align = "Center"},
+		{tag = "h2", font = "CRB_Interface12_BO", color = "UI_TextHoloTitle", align = "Left"},
+		{tag = "h3", font = "CRB_Interface12_I", color = "UI_TextHoloBodyHighlight", align = "Left"},
+		{tag = "p", font = "CRB_Interface12", color = "UI_TextHoloBodyHighlight", align = "Left"},
+		{tag = "li", font = "CRB_Interface12", color = "UI_TextHoloBodyHighlight", align = "Left"},
+	},
 }
 
 
@@ -139,16 +140,18 @@ local function BuildFontDropDown(self, wndButton)
 	wndDDList:Show(false, true)
 end
 
-local function BuildHeadingMenu(self, strHeadingType)
-
+local function BuildHeadingMenu(self, tTag)
 	local wnd = Apollo.LoadForm(self.xmlDoc, "HeaderOptionsForm", self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles") , self)
-	wnd:FindChild("wnd_label"):SetText(strHeadingType)
-	wnd:SetName("wnd_"..strHeadingType)
-	wnd:FindChild("btn_DDAlign:ddList"):Show(false)
-	
+	wnd:FindChild("wnd_label"):SetText(tTag.tag)
+	wnd:SetName("wnd_"..tTag.tag)
+	wnd:FindChild("btn_DDAlign:ddList"):Show(false)	
 	local wndButton = wnd:FindChild("btn_DDFont")
 	BuildFontDropDown(self, wndButton)
-	
+	wnd:FindChild("btn_DDFont"):SetText(tTag.font)
+	wnd:FindChild("btn_DDAlign"):SetText(tTag.align)
+	wnd:FindChild("btn_Color:swatch"):SetBGColor(tTag.color)	
+	local sampleTest = string.format("<P Align=\"%s\" Font=\"%s\" TextColor=\"%s\"> {%s} Text Sample</P>",tTag.align, tTag.font, tTag.color, tTag.tag)
+	wnd:FindChild("wnd_Sample"):SetAML(sampleTest)
 end
 
 -----------------------------------------------------------------------------------------------
@@ -191,7 +194,7 @@ function PDA:OnDocumentLoaded()
 	self.wndMain:Show(false)
 	
 	self.wndMain:FindChild("btn_LookupProfile"):SetCheck(true)
-	self.wndMain:FindChild("btn_EditBackground"):Enable(false)
+	--self.wndMain:FindChild("btn_EditBackground"):Enable(false)
 	self.wndMain:FindChild("wnd_EditProfile"):Show(false)
 	self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):SetMaxTextLength(knDescriptionMax)
 	self.wndMain:FindChild("wnd_LookupProfile"):Show(true)
@@ -201,12 +204,19 @@ function PDA:OnDocumentLoaded()
 	
 	self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
 	self.wndOptions:Show(false)
-	
-	for i,v in pairs(ktMarkupStyles) do
-		BuildHeadingMenu(self, tostring(v.tag))
+	local tagCount = 0
+	for i,v in pairs(self.tPDAOptions.tMarkupStyles) do
+		BuildHeadingMenu(self, v)
+		tagCount = tagCount + 1
 	end
+	
+	local nHeight = (160 * tagCount) + 24
+	local nL, nT, nR, nB = self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles"):GetAnchorOffsets()
+	self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles"):SetAnchorOffsets(nL, nT, nR, nT + nHeight)
+	
+	
 	self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles"):ArrangeChildrenVert(1)
-	self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles"):Show(false)
+	self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles"):Show(true)
 		
 	Apollo.LoadSprites("PDA_Sprites.xml")
 	
@@ -415,28 +425,28 @@ function PDA:CheckDrawDistance(tNameplate)
 	if unitOwner:IsThePlayer() == true then return true end
 
 	local unitPlayer = GameLib.GetPlayerUnit()
+	if unitPlayer then
+		tPosTarget = unitOwner:GetPosition()
+		tPosPlayer = unitPlayer:GetPosition()
 
-	tPosTarget = unitOwner:GetPosition()
-	tPosPlayer = unitPlayer:GetPosition()
+		if tPosTarget == nil then
+			return
+		end
 
-	if tPosTarget == nil then
-		return
+		local nDeltaX = tPosTarget.x - tPosPlayer.x
+		local nDeltaY = tPosTarget.y - tPosPlayer.y
+		local nDeltaZ = tPosTarget.z - tPosPlayer.z
+
+		local nDistance = (nDeltaX * nDeltaX) + (nDeltaY * nDeltaY) + (nDeltaZ * nDeltaZ)
+
+		if tNameplate.bIsTarget or tNameplate.bIsCluster then
+			bInRange = nDistance < knTargetRange
+			return bInRange
+		else
+			bInRange = nDistance < (self.nMaxRange * self.nMaxRange) -- squaring for quick maths
+			return bInRange
+		end
 	end
-
-	local nDeltaX = tPosTarget.x - tPosPlayer.x
-	local nDeltaY = tPosTarget.y - tPosPlayer.y
-	local nDeltaZ = tPosTarget.z - tPosPlayer.z
-
-	local nDistance = (nDeltaX * nDeltaX) + (nDeltaY * nDeltaY) + (nDeltaZ * nDeltaZ)
-
-	if tNameplate.bIsTarget or tNameplate.bIsCluster then
-		bInRange = nDistance < knTargetRange
-		return bInRange
-	else
-		bInRange = nDistance < (self.nMaxRange * self.nMaxRange) -- squaring for quick maths
-		return bInRange
-	end
-	
 end
 
 -----------------------------------------------------------------------------------------------
@@ -444,17 +454,24 @@ end
 -----------------------------------------------------------------------------------------------
 function PDA:DrawCharacterSheet(unitName)
 
-	local rpFullname, rpTitle, rpShortDesc, rpStateString, rpHeight, rpWeight, rpAge, rpRace, rpGender, rpJob
+	local rpFullname, rpTitle, rpShortDesc, rpStateString, rpHeight, rpWeight, rpAge, rpRace, rpGender, rpJob, bPublicHistory, rpHistory
 	local xmlCS = XmlDoc.new()
 	local unit = GameLib.GetPlayerUnitByName(unitName)
 	
+	local strCharacterSheet = ""
+	
 	rpFullname = RPCore:GetTrait(unitName,"fullname") or unitName
+	
 	rpTitle = RPCore:FetchTrait(unitName,"title")
 	rpShortDesc = RPCore:GetTrait(unitName,"shortdesc")
 	rpHeight = RPCore:GetTrait(unitName,"height")
 	rpWeight = RPCore:GetTrait(unitName,"weight")
 	rpAge = RPCore:GetTrait(unitName,"age")
+	bPublicHistory = RPCore:GetTrait(unitName, "publicBio") or false
+	rpHistory = RPCore:GetTrait(unitName, "biography")
 	
+	self.wndCS:FindChild("wnd_Tabs:btn_History"):Enable(bPublicHistory)
+		
 	if unit then
 		rpRace = RPCore:GetTrait(unitName, "race") or karRaceToString[unit:GetRaceId()]
 		rpGender = RPCore:GetTrait(unitName, "gender") or karGenderToString[unit:GetGender()]
@@ -468,23 +485,72 @@ function PDA:DrawCharacterSheet(unitName)
 
 	local tCSColors = self.tPDAOptions.tCSColors
 	
-	if (rpFullname ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Name, self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpFullname)) end
-	if (rpTitle ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Title, self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpTitle)) end
-	if (rpRace ~= nil) then 
-		if type(rpRace) == "string" then
-			xmlCS:AddLine(string.format(ktCSstrings.Species, self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpRace))
-		elseif type(rpRace) == "number" then
-			xmlCS:AddLine(string.format(ktCSstrings.Species,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, karRaceToString[rpRace]))
+	if (rpFullname ~= nil) then
+		strCharacterSheet = strCharacterSheet .. string.format(ktCSstrings.Name, self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpFullname)
+	end
+	if self.wndCS:FindChild("wnd_Tabs:btn_Profile"):IsChecked() == true then
+		if (rpTitle ~= nil) then
+			strCharacterSheet = strCharacterSheet .. string.format(ktCSstrings.Title, self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpTitle)
+		end
+		if (rpRace ~= nil) then 
+			if type(rpRace) == "string" then
+				strCharacterSheet = strCharacterSheet .. string.format(ktCSstrings.Species, self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpRace)
+			elseif type(rpRace) == "number" then
+				strCharacterSheet = strCharacterSheet.. string.format(ktCSstrings.Species,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, karRaceToString[rpRace])
+			end
+		end
+		if (rpGender ~= nil) then strCharacterSheet = strCharacterSheet..string.format(ktCSstrings.Gender,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpGender) end
+		if (rpAge ~= nil) then strCharacterSheet = strCharacterSheet.. string.format(ktCSstrings.Age,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpAge) end
+		if (rpHeight ~= nil) then strCharacterSheet = strCharacterSheet..string.format(ktCSstrings.Height,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpHeight) end
+		if (rpWeight ~= nil) then strCharacterSheet = strCharacterSheet..string.format(ktCSstrings.Weight,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpWeight) end
+		if (rpJob ~= nil) then strCharacterSheet = strCharacterSheet..string.format(ktCSstrings.Job,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpJob) end
+		if (rpShortDesc ~= nil) then strCharacterSheet = strCharacterSheet..string.format(ktCSstrings.Description,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpShortDesc) end
+	end
+	
+	if self.wndCS:FindChild("wnd_Tabs:btn_History"):IsChecked() == true and bPublicHistory == true then
+		if rpHistory ~= nil then
+			local parsedHistory = self:ParseMarkup(rpHistory)
+			strCharacterSheet = strCharacterSheet..string.format("<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Biographical Information: </P>",  self.tPDAOptions.tCSColors.strLabelColor)..parsedHistory
 		end
 	end
-	if (rpGender ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Gender,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpGender)) end
-	if (rpAge ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Age,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpAge)) end
-	if (rpHeight ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Height,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpHeight)) end
-	if (rpWeight ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Weight,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpWeight)) end
-	if (rpJob ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Job,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpJob)) end
-	if (rpShortDesc ~= nil) then xmlCS:AddLine(string.format(ktCSstrings.Description,  self.tPDAOptions.tCSColors.strLabelColor, self.tPDAOptions.tCSColors.strEntryColor, rpShortDesc)) end
 	
-	return xmlCS
+	return strCharacterSheet
+end
+
+function PDA:ParseMarkup(strText)
+	strText = string.gsub(strText, "\n", "")
+	for i, v in pairs(self.tPDAOptions["tMarkupStyles"]) do
+		local strOpenTag = "\{"..v.tag.."\}"
+		local strCloseTag = "\{\/"..v.tag.."\}"
+		local strSubTagOpen= [[<P Font="]]..v.font..[[" Align="]]..v.align..[[" TextColor="]]..v.color..[[">]]
+		local strSubTagClose = "</P>"
+
+		if v.tag == "li" then
+			strSubTagOpen= strSubTagOpen..[[  ●  ]]
+		end
+		if string.find(strText, strOpenTag) then
+			strText = string.gsub(strText, strOpenTag, strSubTagOpen)
+		end
+		if string.find(strText, strCloseTag) then
+			
+			strText = string.gsub(strText, strCloseTag, strSubTagClose)
+		end
+	end
+	local _, nOpenCount = string.gsub(strText, "<P", "")
+	local _, nCloseCount = string.gsub(strText, "/P>", "")
+	
+	--[[if nOpenCount < nCloseCount then
+		local nCloseTagsNeeded = nOpenCount - nCloseCount
+		for i = 1, nCloseTagsNeeded do
+			strText = strText.."</P>"
+		end
+	elseif nCloseCount > nOpenCount then
+		local nCloseTagsNeeded = nCloseCount - nOpenCount
+		for i = 1, nCloseTagsNeeded do
+			strText = "<P>"..strText
+		end
+	end]]
+	return strText
 end
 
 function PDA:CreateCharacterSheet(wndHandler, wndControl)
@@ -492,20 +558,26 @@ function PDA:CreateCharacterSheet(wndHandler, wndControl)
 		
 	if not self.wndCS then
 		self.wndCS = Apollo.LoadForm(self.xmlDoc, "CharSheetForm", nil, self)
+		self.wndCS:FindChild("wnd_Tabs:btn_Profile"):SetCheck(true)
 		self.wndCS:Show(false)
 	end
 	
 	local unitName = unit:GetName()
 	local rpVersion, rpAddons = RPCore:QueryVersion(unitName)
-		
-	if (rpVersion ~= nil) then	
-		self.wndCS:FindChild("wnd_CharSheet"):SetDoc(self:DrawCharacterSheet(unitName))
+	
+	if (rpVersion ~= nil) then
+		self.wndCS:SetData(unitName)
+		self.wndCS:FindChild("wnd_CharSheet"):SetAML(self:DrawCharacterSheet(unitName))
 		self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(unit)
 		self.wndCS:Show(true)
 		self.wndCS:ToFront()
 	end	
 end
 
+function PDA:UpdateCharacterSheet(wndHandler, wndControl)
+	local player = self.wndCS:GetData()
+	self.wndCS:FindChild("wnd_CharSheet"):SetAML(self:DrawCharacterSheet(player))
+end
 -----------------------------------------------------------------------------------------------
 -- PDA Edit Form Functions
 -----------------------------------------------------------------------------------------------
@@ -622,17 +694,6 @@ function PDA:OnDecriptionBoxChanged( wndHandler, wndControl, strText )
 	
 	wndCounter:SetText(tostring(250 - nCharacterCount))
 end
--- Segoe UI Bold, Semibold, Italic
--- Cube Offc Cond
--- 10, 12, 14, 16, 18
---[[
-{
-	face = "",
-	index = n,
-	name = "",
-	size = n,
-}
-]]
 
 ---- Options Methods ----
 function PDA:OnOptionsOK()
@@ -754,7 +815,7 @@ function PDA:ShowCharacterSheet(wndControl, wndHandler, iRow, iCol)
 		self.wndCS:Show(false)
 	end
 
-	self.wndCS:FindChild("wnd_CharSheet"):SetDoc(self:DrawCharacterSheet(strPlayerName))
+	self.wndCS:FindChild("wnd_CharSheet"):SetAML(self:DrawCharacterSheet(strPlayerName))
 	if GameLib.GetPlayerUnitByName(strPlayerName) then
 		self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(GameLib.GetPlayerUnitByName(strPlayerName))
 		self.wndCS:FindChild("wnd_Portrait"):Show(true)
@@ -762,57 +823,44 @@ function PDA:ShowCharacterSheet(wndControl, wndHandler, iRow, iCol)
 		self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(nil)
 		self.wndCS:FindChild("wnd_Portrait"):Show(false)
 	end
+	self.wndCS:SetData(strPlayerName)
 	self.wndCS:Show(true)
 	self.wndCS:ToFront()
 end
 
 ---- Edit History ----
---[[
+function PDA:OnEditHistoryShow(wndHandler, wndControl)
+	local wndEditBox = self.wndMain:FindChild("wnd_EditBackground:input_s_History")
+	local wndPublicBio = self.wndMain:FindChild("wnd_EditBackground:input_b_PublicHistory")
+	local strBioText = RPCore:GetLocalTrait("biography") or ""
+	local bPublicBio = RPCore:GetLocalTrait("publicBio") or false
 	
-	[*] = bullet point --</T><T Image=""></T>
-	[b] [/b] = bold --</T><T Font="CRB_Interface12_B">  --</T>
-	[i] [/i] = italic --</T><T Font="CRB_Interface12_I"> --</T>
-]]
+	strBioText = string.gsub(strBioText, "</BR>", "\n")
+	
+	wndEditBox:SetText(strBioText)
+	wndPublicBio:SetCheck(bPublicBio)
+	self:OnEditHistoryBoxChanged( wndEditBox, wndEditBox)
+end
 
-function PDA:ParseMarkup(strText)
+function PDA:OnEditHistoryOK(wndHandler, wndControl)
+	local editBox = self.wndMain:FindChild("wnd_EditBackground:input_s_History")
+	local bioText = editBox:GetText()
+	RPCore:SetLocalTrait("biography", bioText)
+end
+
+function PDA:OnEditHistoryCancel(wndHandler, wndControl)
+	self:OnEditHistoryShow()
+end
+
+function PDA:OnPublicHistoryCheck(wndHandler, wndControl)
+	RPCore:SetLocalTrait("publicBio", wndControl:IsChecked())
+end
+
+function PDA:OnEditHistoryBoxChanged( wndHandler, wndControl, strText )
+	local nCharacterCount = string.len(wndControl:GetText())
+	local wndCounter = wndControl:GetParent():FindChild("wnd_CharacterCount")
 	
-	local tTags = {
-		["[h1]"] = "<P Font=\"%s\" Align=\"%s\">",
-		["[/h1]"] = "</P>",
-		["[h2]"] = "<P Font=\"%s\" Align=\"%s\">",
-		["[/h2]"] = "</P>",
-		["[h3]"] = "<P Font=\"%s\" Align=\"%s\">",
-		["[/h3]"] = "</P>",
-		["[li]"] = "<P Font=\"%s\" Align=\"%s\">  ●  ",
-		["[/li]"] = "</P>",
-		["[p]"] = "<P Font=\"%s\" Align=\"%s\">",
-		["[p]"] = "</P>",
-	}
-	
-	for i, v in pairs(ktMarkupStyles) do
-		local strOpenTag = string.format("[%s]",v.tag)
-		local strCloseTag = string.format("[/%s]",v.tag)
-		local strSubTagOpen
-		if v.tag == "li" then
-			strSubTagOpen= string.format("<P Font=\"%s\" Align=\"%s\" TextColor=\"%s\">  ●  ",v.font, v.align, v.color)
-		else
-			strSubTagOpen= string.format("<P Font=\"%s\" Align=\"%s\" TextColor=\"%s\">",v.font, v.align, v.color)
-		end
-		local strSubTagClose = "</P>"
-		strText = gsub:strText(strOpenTag, strSubTagOpen)
-		strText = gsub:strText(strCloseTag, strSubTagClose)
-	end
-	local _, nOpenCount = string.gsub(strText, "<P", "")
-	local _, nCloseCount = string.gsub(strText, "/P>", "")
-	
-	if nOpenCount < nCloseCount then
-		local nCloseTagsNeeded = nOpenCount - nCloseCount
-		for i = 1, nCloseTagsNeeded do
-			strText = strText.."</P>"
-		end
-	end
-	
-	return strText
+	wndCounter:SetText(tostring(2500 - nCharacterCount))
 end
 
 function PDA:InsertTag(wndHandler, wndControl)
@@ -822,26 +870,18 @@ function PDA:InsertTag(wndHandler, wndControl)
 	
 	if (tSelected.cpEnd - tSelected.cpBegin ) > 0 then
 		local strSelectedText = string.sub(wndEditBox:GetText(), tSelected.cpBegin, tSelected.cpEnd)
-		wndEditBox:InsertText(string.format("\[%s\]%s\[/%s\]",tagType, strSelectedText, tagType))
+		wndEditBox:InsertText(string.format("\{%s\}%s\{/%s\}",tagType, strSelectedText, tagType))
 	else
-		wndEditBox:InsertText(string.format("\[%s\]\[/%s\]",tagType, tagType))
-		wndEditBox:SetSel(string.len(wndEditBox:GetText()) - (string.len(tagType) + 2), string.len(wndEditBox:GetText()) - (string.len(tagType) + 2))
+		wndEditBox:InsertText(string.format("\{%s\}\{/%s\}",tagType, tagType))
+		wndEditBox:SetSel(string.len(wndEditBox:GetText()) - (string.len(tagType) + 3), string.len(wndEditBox:GetText()) - (string.len(tagType) + 3))
 	end
 	
 end
 
 function PDA:OnHistoryReturn(wndHandler, wndControl, strText)
-	wndControl:InsertText("\n\[p\] \[/p\]")
-	wndControl:SetSel(string.len(wndControl:GetText()) - 4, string.len(wndControl:GetText()) - 4)
-end
-
-function PDA:TestGetSel(wndHandler, wndControl)
-	local tTest = self.wndMain:FindChild("wnd_EditBackground:input_s_History"):GetSel()
-	local strTest = self.wndMain:FindChild("wnd_EditBackground:input_s_History"):GetText()
-end
-
-function PDA:TestInsert(wndHandler, wndControl)
-	self.wndMain:FindChild("wnd_EditBackground:input_s_History"):InsertText("●   TEST")
+	Print(wndControl:GetName())
+	wndControl:InsertText("\n\[p\]\[/p\]")
+	wndEditBox:SetSel(string.len(wndEditBox:GetText()) - (string.len("p") + 3), string.len(wndEditBox:GetText()) - (string.len("p") + 3))
 end
 
 function PDA:StringSubUTF8(str, startChar, numChars)
