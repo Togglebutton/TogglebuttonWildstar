@@ -140,6 +140,16 @@ local function BuildFontDropDown(self, wndButton)
 	wndDDList:Show(false, true)
 end
 
+local function SetDDSelectByName(self, wndDDList, strName)
+	local tButtonList = wndDDList:GetChildren()
+	for i,v in pairs(tButtonList) do
+		if v:GetName() == "btn_"..strName then
+			wndDDList:SetRadioSelButton("DDList", v)
+			return v
+		end
+	end
+end
+
 local function BuildHeadingMenu(self, tTag)
 	local wnd = Apollo.LoadForm(self.xmlDoc, "HeaderOptionsForm", self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles") , self)
 	wnd:FindChild("wnd_label"):SetText(tTag.tag)
@@ -148,12 +158,16 @@ local function BuildHeadingMenu(self, tTag)
 	local wndButton = wnd:FindChild("btn_DDFont")
 	BuildFontDropDown(self, wndButton)
 	wnd:FindChild("btn_DDFont"):SetText(tTag.font)
+	SetDDSelectByName(self, wnd:FindChild("btn_DDFont:ddList"), tTag.font)
+	
 	wnd:FindChild("btn_DDAlign"):SetText(tTag.align)
+	SetDDSelectByName(self, wnd:FindChild("btn_DDAlign:ddList"), tTag.align)
+	
 	wnd:FindChild("btn_Color:swatch"):SetBGColor(tTag.color)	
 	local sampleTest = string.format("<P Align=\"%s\" Font=\"%s\" TextColor=\"%s\"> {%s} Text Sample</P>",tTag.align, tTag.font, tTag.color, tTag.tag)
 	wnd:FindChild("wnd_Sample"):SetAML(sampleTest)
+	
 end
-
 -----------------------------------------------------------------------------------------------
 -- Initialization
 -----------------------------------------------------------------------------------------------
@@ -180,7 +194,7 @@ function PDA:Init()
 	}
     Apollo.RegisterAddon(self, bHasConfigureButton, strConfigureButtonText, tDependencies)
 end
- 
+
 -----------------------------------------------------------------------------------------------
 -- PDA OnLoad
 -----------------------------------------------------------------------------------------------
@@ -192,9 +206,8 @@ end
 function PDA:OnDocumentLoaded()
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "PDAEditForm", nil, self)
 	self.wndMain:Show(false)
-	
+
 	self.wndMain:FindChild("btn_LookupProfile"):SetCheck(true)
-	--self.wndMain:FindChild("btn_EditBackground"):Enable(false)
 	self.wndMain:FindChild("wnd_EditProfile"):Show(false)
 	self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):SetMaxTextLength(knDescriptionMax)
 	self.wndMain:FindChild("wnd_LookupProfile"):Show(true)
@@ -210,11 +223,9 @@ function PDA:OnDocumentLoaded()
 		tagCount = tagCount + 1
 	end
 	
-	local nHeight = (160 * tagCount) + 24
+	local nHeight = (160 * tagCount) + 48
 	local nL, nT, nR, nB = self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles"):GetAnchorOffsets()
 	self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles"):SetAnchorOffsets(nL, nT, nR, nT + nHeight)
-	
-	
 	self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles"):ArrangeChildrenVert(1)
 	self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles"):Show(true)
 		
@@ -223,6 +234,7 @@ function PDA:OnDocumentLoaded()
 	Apollo.RegisterEventHandler("UnitCreated","OnUnitCreated",self) 
 	Apollo.RegisterEventHandler("UnitDestroyed","OnUnitDestroyed",self)
 	Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
+	Apollo.RegisterEventHandler("PDA_HeaderColorUpdated", "UpdateHeadingDisplay", self)
 	Apollo.RegisterEventHandler("ToggleAddon_PDA", "OnPDAOn", self)
 		
 	Apollo.RegisterSlashCommand("pda", "OnPDAOn", self)
@@ -711,7 +723,21 @@ function PDA:OnOptionsOK()
 	
 	tColor = wndOptions:FindChild("btn_Color_Title"):FindChild("swatch"):GetBGColor():ToTable()
 	strEntryColor = GeminiColor:RGBAPercToHex(tColor.r, tColor.g, tColor.b, tColor.a)
+	
+	local wndStyles = wndOptions:FindChild("group_BioMarkupStyles")
+	
+	for i,v in pairs(self.tPDAOptions.tMarkupStyles) do
+		local wndStylePanel = wndStyles:FindChild("wnd_"..v.tag)
+		local strFont = wndStylePanel:FindChild("btn_DDFont:ddList"):GetRadioSelButton("DDList"):GetName()
+		local tColor = wndStylePanel:FindChild("btn_Color:swatch"):GetBGColor():ToTable()
+		local strColor = GeminiColor:RGBAPercToHex(tColor.r, tColor.g, tColor.b, tColor.a) --
+		local strAlign = wndStylePanel:FindChild("btn_DDAlign:ddList"):GetRadioSelButton("DDList"):GetName()
 		
+		v.align = string.sub(strAlign,5)
+		v.color = strColor
+		v.font = string.sub(strFont, 5)
+	end
+	
 	self.tPDAOptions.tCSColors.strLabelColor = strLabelColor
 	self.tPDAOptions.tCSColors.strEntryColor = strEntryColor
 	self.tPDAOptions.nOffset = wndOptions:FindChild("input_n_Offset"):GetValue()
@@ -725,10 +751,22 @@ function PDA:OnOptionsCancel()
 end
 
 function PDA:OnShowOptions(wndHandler, wndControl)
+	if wndHandler ~= wndControl then return end
 	local wndOptions = self.wndOptions:FindChild("wnd_ScrollFrame")
 	
 	for i = 0, 7 do
 		wndOptions:FindChild("btn_Color_State"..tostring(i)):FindChild("swatch"):SetBGColor(self.tPDAOptions.tRPColors[i])
+	end
+	
+	for i,tTag in pairs(self.tPDAOptions.tMarkupStyles) do
+		local wndStylePanel = wndOptions:FindChild("group_BioMarkupStyles:wnd_"..tTag.tag)
+		wndStylePanel:FindChild("btn_DDFont"):SetText(tTag.font)
+		SetDDSelectByName(self, wndStylePanel:FindChild("btn_DDFont:ddList"), tTag.font)
+		wndStylePanel:FindChild("btn_DDAlign"):SetText(tTag.align)
+		SetDDSelectByName(self, wndStylePanel:FindChild("btn_DDAlign:ddList"), tTag.align)
+		wndStylePanel:FindChild("btn_Color:swatch"):SetBGColor(tTag.color)
+		local sampleTest = string.format("<P Align=\"%s\" Font=\"%s\" TextColor=\"%s\"> {%s} Text Sample</P>",tTag.align, tTag.font, tTag.color, tTag.tag)
+		wndStylePanel:FindChild("wnd_Sample"):SetAML(sampleTest)
 	end
 	
 	wndOptions:FindChild("btn_Color_Name"):FindChild("swatch"):SetBGColor(self.tPDAOptions.tCSColors.strLabelColor)
@@ -736,6 +774,23 @@ function PDA:OnShowOptions(wndHandler, wndControl)
 	wndOptions:FindChild("input_b_ShowPlayerNameplate"):SetCheck(self.tPDAOptions.bShowMyNameplate)
 	wndOptions:FindChild("input_n_Offset"):SetMinMax(0,100)
 	wndOptions:FindChild("input_n_Offset"):SetValue(self.tPDAOptions.nOffset or 0)
+	
+	wndOptions:SetFocus()
+	wndOptions:SetVScrollPos(1)
+end
+
+function PDA:UpdateHeadingDisplay()
+	local wndOptions = self.wndOptions:FindChild("wnd_ScrollFrame")
+	for i,tTag in pairs(ktPDAOptions.tMarkupStyles) do
+		local wndStylePanel = wndOptions:FindChild("group_BioMarkupStyles:wnd_"..tTag.tag)
+		local strFont = wndStylePanel:FindChild("btn_DDFont"):GetText()
+		local strAlign = wndStylePanel:FindChild("btn_DDAlign"):GetText()
+		local tColor = wndStylePanel:FindChild("btn_Color"):FindChild("swatch"):GetBGColor():ToTable()
+		local strColor = GeminiColor:RGBAPercToHex(tColor.r, tColor.g, tColor.b, tColor.a)
+		
+		local sampleTest = string.format("<P Align=\"%s\" Font=\"%s\" TextColor=\"%s\"> {%s} Text Sample</P>",strAlign, strFont, strColor, tTag.tag)
+		wndStylePanel:FindChild("wnd_Sample"):SetAML(sampleTest)
+	end	
 end
 
 function PDA:OptionsDDClick(wndHandler, wndControl)
@@ -748,7 +803,18 @@ function PDA:OptionsDDListItemClick(wndHandler, wndControl)
 	local ddButton = ddList:GetParent()
 	
 	ddButton:SetText(wndControl:GetText())
-	ddList:Show(false)	
+	ddList:Show(false)
+	self:UpdateHeadingDisplay()
+end
+
+function PDA:HeaderColorButtonClick(wndHandler, wndControl)
+	local funcs = {
+		ChangeSwatchColor = function(self, strColor)
+			wndControl:FindChild("swatch"):SetBGColor(strColor)
+			Event_FireGenericEvent("PDA_HeaderColorUpdated")
+		end,
+	}
+	GeminiColor:ShowColorPicker(funcs, "ChangeSwatchColor")	
 end
 
 function PDA:ColorButtonClick(wndHandler, wndControl)

@@ -402,7 +402,7 @@ function RPCore:GetTrait(strTarget, strTrait)
 	elseif (strTrait == RPCore.Trait_RPState) then 
 		local rpFlags = self:FetchTrait(strTarget,"rpflags") or 0
 		result = self:FlagsToString(rpFlags)
-	elseif (strTrait == RPCore.Trait_Biography) then 
+	elseif (strTrait == RPCore.Trait_Biography) then
 		result = self:FetchTrait(strTarget, "biography")
 	else 
 		result = self:FetchTrait(strTarget, strTrait)
