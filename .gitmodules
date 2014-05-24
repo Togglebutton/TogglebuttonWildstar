@@ -1,6 +1,3 @@
 [submodule "PDA/libs/RPCore"]
 	path = PDA/libs/RPCore
 	url = https://github.com/wildstarnasa/RPCore.git
-[submodule "GeminiColor"]
-	path = GeminiColor
-	url = https://github.com/wildstarnasa/GeminiColor
