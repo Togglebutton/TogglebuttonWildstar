@@ -10,9 +10,8 @@ require "Unit"
 -----------------------------------------------------------------------------------------------
 -- PDA Module Definition
 -----------------------------------------------------------------------------------------------
-local PDA = {} 
-local RPCore
-local GeminiColor
+local PDA = {}
+local RPCore, GeminiColor, GeminiMarkup
 
 -----------------------------------------------------------------------------------------------
 -- Constants
@@ -48,10 +47,6 @@ local ktCSstrings =
 	Job = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Occupation: <P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
 	Description = "<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Description: <BR /><P font=\"CRB_Interface12_BO\" TextColor=\"%s\">%s</P></P>",
 }
-
-local knDescriptionMax = 250
-local knBioMax = 2500
-local knTargetRange = 400
 
 local ktPDAOptions =
 {
@@ -90,6 +85,10 @@ local ktRaceSprites =
 	[GameLib.CodeEnumRace.Chua] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_ChuFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_ChuFlyby"},
 	[GameLib.CodeEnumRace.Mordesh] = {[0] = "CRB_CharacterCreateSprites:btnCharC_RG_MoMFlyby", [1] = "CRB_CharacterCreateSprites:btnCharC_RG_MoMFlyby"},
 }
+
+local knDescriptionMax = 250
+local knBioMax = 2500
+local knTargetRange = 400
 
 -----------------------------------------------------------------------------------------------
 -- Local Functions
@@ -205,6 +204,11 @@ function PDA:OnLoad()
 end
 
 function PDA:OnDocumentLoaded()
+
+	GeminiColor = Apollo.GetPackage("GeminiColor").tPackage
+	GeminiMarkup = Apollo.GetPackage("GeminiMarkup").tPackage
+	RPCore = _G["GeminiPackages"]:GetPackage("RPCore-1.1")
+	
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "PDAEditForm", nil, self)
 	self.wndMain:Show(false)
 
@@ -213,7 +217,8 @@ function PDA:OnDocumentLoaded()
 	self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):SetMaxTextLength(knDescriptionMax)
 	self.wndMain:FindChild("wnd_LookupProfile"):Show(true)
 	self.wndMain:FindChild("wnd_EditBackground"):Show(false)
-	self.wndMain:FindChild("wnd_EditBackground:input_s_History"):SetMaxTextLength(knBioMax)
+	local tProperties = { nCharacterLimit = knBioMax,}
+	self.wndMarkupEdit = GeminiMarkup:CreateMarkupEditControl(self.wndMain:FindChild("wnd_EditBackground:wnd_MarkupEditBox"), "Holo", tProperties, self)
 	self.wndMain:FindChild("wnd_Portrait"):Show(false)
 
 	self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
@@ -239,8 +244,7 @@ function PDA:OnDocumentLoaded()
 	Apollo.RegisterTimerHandler("PDA_RefreshTimer","RefreshPlates",self)
 	Apollo.CreateTimer("PDA_RefreshTimer", 10, true)
 
-	GeminiColor = Apollo.GetPackage("GeminiColor").tPackage --_G["GeminiPackages"]:GetPackage("GeminiColor-1.0")
-	RPCore = _G["GeminiPackages"]:GetPackage("RPCore-1.1")
+	
 end
 
 function PDA:OnInterfaceMenuListHasLoaded()
@@ -484,48 +488,12 @@ function PDA:DrawCharacterSheet(unitName)
 	
 	if self.wndCS:FindChild("wnd_Tabs:btn_History"):IsChecked() == true and bPublicHistory == true then
 		if rpHistory ~= nil then
-			local parsedHistory = self:ParseMarkup(rpHistory)
+			local parsedHistory = GeminiMarkup:ParseMarkup(rpHistory, self.tPDAOptions.tMarkupStyles)
 			strCharacterSheet = strCharacterSheet..string.format("<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Biographical Information: </P>",  self.tPDAOptions.tCSColors.strLabelColor)..parsedHistory
 		end
 	end
 	
 	return strCharacterSheet
-end
-
-function PDA:ParseMarkup(strText)
-	strText = string.gsub(strText, "\n", "")
-	for i, v in pairs(self.tPDAOptions["tMarkupStyles"]) do
-		local strOpenTag = "\{"..v.tag.."\}"
-		local strCloseTag = "\{\/"..v.tag.."\}"
-		local strSubTagOpen= [[<P Font="]]..v.font..[[" Align="]]..v.align..[[" TextColor="]]..v.color..[[">]]
-		local strSubTagClose = "</P>"
-
-		if v.tag == "li" then
-			strSubTagOpen= strSubTagOpen..[[  ●  ]]
-		end
-		if string.find(strText, strOpenTag) then
-			strText = string.gsub(strText, strOpenTag, strSubTagOpen)
-		end
-		if string.find(strText, strCloseTag) then
-			
-			strText = string.gsub(strText, strCloseTag, strSubTagClose)
-		end
-	end
-	local _, nOpenCount = string.gsub(strText, "<P", "")
-	local _, nCloseCount = string.gsub(strText, "/P>", "")
-	
-	--[[if nOpenCount < nCloseCount then
-		local nCloseTagsNeeded = nOpenCount - nCloseCount
-		for i = 1, nCloseTagsNeeded do
-			strText = strText.."</P>"
-		end
-	elseif nCloseCount > nOpenCount then
-		local nCloseTagsNeeded = nCloseCount - nOpenCount
-		for i = 1, nCloseTagsNeeded do
-			strText = "<P>"..strText
-		end
-	end]]
-	return strText
 end
 
 function PDA:CreateCharacterSheet(wndHandler, wndControl)
@@ -669,13 +637,6 @@ function PDA:OnEditCancel()
 	self:OnEditShow()
 end
 
-function PDA:OnDecriptionBoxChanged( wndHandler, wndControl, strText )
-	local nCharacterCount = string.len(wndControl:GetText())
-	local wndCounter = wndControl:GetParent():FindChild("sprite_div:wnd_Counter")
-	
-	wndCounter:SetText(tostring(250 - nCharacterCount))
-end
-
 ---- Profile Viewer Methods ----
 
 function PDA:FillProfileList()
@@ -748,21 +709,18 @@ end
 ---- Edit History ----
 
 function PDA:OnEditHistoryShow(wndHandler, wndControl)
-	local wndEditBox = self.wndMain:FindChild("wnd_EditBackground:input_s_History")
 	local wndPublicBio = self.wndMain:FindChild("wnd_EditBackground:input_b_PublicHistory")
 	local strBioText = RPCore:GetLocalTrait("biography") or ""
 	local bPublicBio = RPCore:GetLocalTrait("publicBio") or false
 	
 	strBioText = string.gsub(strBioText, "<BR />", "\n")
 	
-	wndEditBox:SetText(strBioText)
+	GeminiMarkup:SetText(self.wndMarkupEdit, strBioText)
 	wndPublicBio:SetCheck(bPublicBio)
-	self:OnEditHistoryBoxChanged( wndEditBox, wndEditBox)
 end
 
 function PDA:OnEditHistoryOK(wndHandler, wndControl)
-	local editBox = self.wndMain:FindChild("wnd_EditBackground:input_s_History")
-	local bioText = editBox:GetText()
+	local bioText = GeminiMarkup:GetText(self.wndMarkupEdit)
 	RPCore:SetLocalTrait("biography", bioText)
 end
 
@@ -772,34 +730,6 @@ end
 
 function PDA:OnPublicHistoryCheck(wndHandler, wndControl)
 	RPCore:SetLocalTrait("publicBio", wndControl:IsChecked())
-end
-
-function PDA:OnEditHistoryBoxChanged( wndHandler, wndControl, strText )
-	local nCharacterCount = string.len(wndControl:GetText())
-	local wndCounter = wndControl:GetParent():FindChild("wnd_CharacterCount")
-	
-	wndCounter:SetText(tostring(2500 - nCharacterCount))
-end
-
-function PDA:InsertTag(wndHandler, wndControl)
-	local wndEditBox = self.wndMain:FindChild("wnd_EditBackground:input_s_History")
-	local tagType = string.sub(wndControl:GetName(), 5)
-	local tSelected = wndEditBox:GetSel()
-	
-	if (tSelected.cpEnd - tSelected.cpBegin ) > 0 then
-		local strSelectedText = string.sub(wndEditBox:GetText(), tSelected.cpBegin, tSelected.cpEnd)
-		wndEditBox:InsertText(string.format("\{%s\}%s\{/%s\}",tagType, strSelectedText, tagType))
-	else
-		wndEditBox:InsertText(string.format("\{%s\}\{/%s\}",tagType, tagType))
-		wndEditBox:SetSel(string.len(wndEditBox:GetText()) - (string.len(tagType) + 3), string.len(wndEditBox:GetText()) - (string.len(tagType) + 3))
-	end
-	
-end
-
-function PDA:OnHistoryReturn(wndHandler, wndControl, strText)
-	Print(wndControl:GetName())
-	wndControl:InsertText("{p}{/p}")
-	wndEditBox:SetSel(string.len(wndEditBox:GetText()) - (string.len("p") + 3), string.len(wndEditBox:GetText()) - (string.len("p") + 4))
 end
 
 -----------------------------------------------------------------------------------------------
