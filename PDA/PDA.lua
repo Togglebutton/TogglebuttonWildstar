@@ -215,7 +215,7 @@ function PDA:OnDocumentLoaded()
 	self.wndMain:FindChild("wnd_EditBackground"):Show(false)
 	self.wndMain:FindChild("wnd_EditBackground:input_s_History"):SetMaxTextLength(knBioMax)
 	self.wndMain:FindChild("wnd_Portrait"):Show(false)
-	
+
 	self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
 	self.wndOptions:Show(false)
 	local tagCount = 0
@@ -227,7 +227,7 @@ function PDA:OnDocumentLoaded()
 	self.wndOptions:FindChild("wnd_ScrollFrame:group_BioMarkupStyles"):ArrangeChildrenVert(1)	
 
 	Apollo.LoadSprites("PDA_Sprites.xml", "PDA_Sprites")
-	
+
 	Apollo.RegisterEventHandler("UnitCreated","OnUnitCreated",self) 
 	Apollo.RegisterEventHandler("UnitDestroyed","OnUnitDestroyed",self)
 	Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
@@ -235,10 +235,10 @@ function PDA:OnDocumentLoaded()
 	Apollo.RegisterEventHandler("ToggleAddon_PDA", "OnPDAOn", self)
 
 	Apollo.RegisterSlashCommand("pda", "OnPDAOn", self)
-	
+
 	Apollo.RegisterTimerHandler("PDA_RefreshTimer","RefreshPlates",self)
 	Apollo.CreateTimer("PDA_RefreshTimer", 10, true)
-	
+
 	GeminiColor = Apollo.GetPackage("GeminiColor").tPackage --_G["GeminiPackages"]:GetPackage("GeminiColor-1.0")
 	RPCore = _G["GeminiPackages"]:GetPackage("RPCore-1.1")
 end
@@ -753,7 +753,7 @@ function PDA:OnEditHistoryShow(wndHandler, wndControl)
 	local strBioText = RPCore:GetLocalTrait("biography") or ""
 	local bPublicBio = RPCore:GetLocalTrait("publicBio") or false
 	
-	strBioText = string.gsub(strBioText, "</BR>", "\n")
+	strBioText = string.gsub(strBioText, "<BR />", "\n")
 	
 	wndEditBox:SetText(strBioText)
 	wndPublicBio:SetCheck(bPublicBio)

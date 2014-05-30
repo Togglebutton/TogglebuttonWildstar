@@ -4,3 +4,6 @@
 [submodule "PDA/GeminiColor"]
 	path = PDA/GeminiColor
 	url = https://github.com/wildstarnasa/GeminiColor
+[submodule "PDA/GeminiMarkup"]
+	path = PDA/GeminiMarkup
+	url = https://github.com/wildstarnasa/GeminiMarkup
