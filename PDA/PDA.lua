@@ -6,12 +6,14 @@
 require "Window"
 require "GameLib"
 require "Unit"
+require "GameLib"
 
 -----------------------------------------------------------------------------------------------
 -- PDA Module Definition
 -----------------------------------------------------------------------------------------------
 local PDA = {}
-local RPCore, GeminiColor, GeminiMarkup
+local RPCore
+local GeminiColor
 
 -----------------------------------------------------------------------------------------------
 -- Constants
@@ -88,7 +90,7 @@ local ktRaceSprites =
 
 local knDescriptionMax = 250
 local knBioMax = 2500
-local knTargetRange = 400
+local knTargetRange = 40
 
 -----------------------------------------------------------------------------------------------
 -- Local Functions
@@ -180,9 +182,11 @@ function PDA:new(o)
 
     -- initialize variables here
 	o.arUnit2Nameplate = {}
+	o.arWnd2Nameplate = {}
 	o.nMaxRange = 200
-	o.bShowMyNameplate = true
 	o.tPDAOptions = ktPDAOptions
+	self.unitPlayer = GameLib.GetPlayerUnit()
+	self.nMaxRange = 40
     return o
 end
 
@@ -206,7 +210,6 @@ end
 function PDA:OnDocumentLoaded()
 
 	GeminiColor = Apollo.GetPackage("GeminiColor").tPackage
-	GeminiMarkup = Apollo.GetPackage("GeminiMarkup").tPackage
 	RPCore = _G["GeminiPackages"]:GetPackage("RPCore-1.1")
 	
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "PDAEditForm", nil, self)
@@ -217,8 +220,8 @@ function PDA:OnDocumentLoaded()
 	self.wndMain:FindChild("wnd_EditProfile:input_s_Description"):SetMaxTextLength(knDescriptionMax)
 	self.wndMain:FindChild("wnd_LookupProfile"):Show(true)
 	self.wndMain:FindChild("wnd_EditBackground"):Show(false)
-	local tProperties = { nCharacterLimit = knBioMax,}
-	self.wndMarkupEdit = GeminiMarkup:CreateMarkupEditControl(self.wndMain:FindChild("wnd_EditBackground:wnd_MarkupEditBox"), "Holo", tProperties, self)
+	self.wndMain:FindChild("wnd_EditBackground:input_s_History"):SetMaxTextLength(knBioMax)
+	
 	self.wndMain:FindChild("wnd_Portrait"):Show(false)
 
 	self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
@@ -238,13 +241,15 @@ function PDA:OnDocumentLoaded()
 	Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
 	Apollo.RegisterEventHandler("PDA_HeaderColorUpdated", "UpdateHeadingDisplay", self)
 	Apollo.RegisterEventHandler("ToggleAddon_PDA", "OnPDAOn", self)
-
+	Apollo.RegisterEventHandler("RPCore_VersionUpdated", "OnRPCoreCallback", self)
 	Apollo.RegisterSlashCommand("pda", "OnPDAOn", self)
+	Apollo.RegisterEventHandler("ChangeWorld", "UpdatePlayerNameplate", self)
 
 	Apollo.RegisterTimerHandler("PDA_RefreshTimer","RefreshPlates",self)
-	Apollo.CreateTimer("PDA_RefreshTimer", 10, true)
-
-	
+	Apollo.CreateTimer("PDA_RefreshTimer", 1, true)
+	if self.tPDAOptions.bShowMyNameplate then
+		self:OnRPCoreCallback({player = GameLib.GetPlayerUnit():GetName()})
+	end
 end
 
 function PDA:OnInterfaceMenuListHasLoaded()
@@ -279,71 +284,171 @@ end
 -- PDA Nameplate Functions
 -----------------------------------------------------------------------------------------------
 function PDA:OnUnitCreated(unitNew)
+	if not self.unitPlayer then
+		self.unitPlayer = GameLib.GetPlayerUnit()
+	end
+	if unitNew:IsThePlayer() then
+		self:OnRPCoreCallback({player = unitNew:GetName()})
+	end
 	if unitNew:IsACharacter() then
 		local rpVersion, rpAddons = RPCore:QueryVersion(unitNew:GetName())
-		if rpVersion ~= nil then
-			
-			local strUnitName = unitNew:GetName()
-			if self.arUnit2Nameplate[strUnitName] ~= nil then
-				self.arUnit2Nameplate[strUnitName].wndNameplate:SetUnit(self.arUnit2Nameplate[strUnitName].unitOwner)
-				return
-			end
-			
-			local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
-			wnd:SetUnit(unitNew)
-			wnd:Show(false)
-
-			local tNameplate =
-			{
-				unitOwner 		= unitNew,
-				idUnit 			= unitNew:GetId(),
-				unitName		= strUnitName,
-				wndNameplate	= wnd,
-				bOnScreen 		= wnd:IsOnScreen(),
-				bOccluded 		= wnd:IsOccluded(),
-				bInCombat		= false,
-				eDisposition	= unitNew:GetDispositionTo(GameLib.GetPlayerUnit()),
-			}
-			
-			self.arUnit2Nameplate[strUnitName] = tNameplate
-		end
 	end
-end 
+end
+
+function PDA:OnRPCoreCallback(tArgs)
+	local strUnitName = tArgs.player
+	local unit = GameLib.GetPlayerUnitByName(strUnitName)
+	local idUnit = unit:GetId()
+	if self.arUnit2Nameplate[idUnit] ~= nil and self.arUnit2Nameplate[idUnit].wndNameplate:IsValid() then
+		return
+	end
+	
+	local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
+	wnd:Show(false, true)
+	wnd:SetUnit(unit, 1)
+	
+	local tNameplate =
+	{
+		unitOwner 		= unit,
+		idUnit 			= unit:GetId(),
+		unitName		= strUnitName,
+		wndNameplate	= wnd,
+		bOnScreen 		= wnd:IsOnScreen(),
+		bOccluded 		= wnd:IsOccluded(),
+		eDisposition	= unit:GetDispositionTo(self.unitPlayer),
+		bShow			= false,
+	}
+	
+	self.arUnit2Nameplate[idUnit] = tNameplate
+	self.arWnd2Nameplate[wnd:GetId()] = tNameplate
+	
+	self:DrawNameplate(tNameplate)
+end
 
 function PDA:OnUnitDestroyed(unitOwner)
 	if unitOwner:IsACharacter() then
-		local strUnitName = unitOwner:GetName()
-		if self.arUnit2Nameplate[strUnitName] == nil then
+		local idUnit = unitOwner:GetId()
+		if self.arUnit2Nameplate[idUnit] == nil then
 			return
 		end
-		local wndNameplate = self.arUnit2Nameplate[strUnitName].wndNameplate
 		
+		local wndNameplate = self.arUnit2Nameplate[idUnit].wndNameplate
+		
+		self.arWnd2Nameplate[wndNameplate:GetId()] = nil
 		wndNameplate:Destroy()
-		self.arUnit2Nameplate[strUnitName] = nil
+		self.arUnit2Nameplate[idUnit] = nil
 	end
 end
 
 function PDA:RefreshPlates()
 	for idx, tNameplate in pairs(self.arUnit2Nameplate) do
+		local bNewShow = self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
+		if bNewShow ~= tNameplate.bShow then
+			tNameplate.wndNameplate:Show(bNewShow)
+			tNameplate.bShow = bNewShow
+		end
 		self:DrawNameplate(tNameplate)
 	end
-	self.bFrameAlt = not self.bFrameAlt
+end
+
+function PDA:CheckDrawDistance(tNameplate)
+	local unitPlayer = self.unitPlayer
+	local unitOwner = tNameplate.unitOwner
+	
+	if not unitOwner or not unitPlayer then
+	    return false
+	end
+
+	tPosTarget = unitOwner:GetPosition()
+	tPosPlayer = unitPlayer:GetPosition()
+
+	if tPosTarget == nil then
+		return
+	end
+
+	local nDeltaX = tPosTarget.x - tPosPlayer.x
+	local nDeltaY = tPosTarget.y - tPosPlayer.y
+	local nDeltaZ = tPosTarget.z - tPosPlayer.z
+
+	local nDistance = (nDeltaX * nDeltaX) + (nDeltaY * nDeltaY) + (nDeltaZ * nDeltaZ)
+
+	if tNameplate.bIsTarget or tNameplate.bIsCluster then
+		bInRange = nDistance < knTargetRange
+		return bInRange
+	else
+		bInRange = nDistance < (self.nMaxRange * self.nMaxRange) -- squaring for quick maths
+		return bInRange
+	end
+end
+
+function PDA:HelperVerifyVisibilityOptions(tNameplate)
+	local unitPlayer = self.unitPlayer
+	local unitOwner = tNameplate.unitOwner
+	local eDisposition = tNameplate.eDisposition
+
+	local bHiddenUnit = not unitOwner:ShouldShowNamePlate()
+	if bHiddenUnit then
+		return false
+	end
+	
+	if tNameplate.bOccluded or not tNameplate.bOnScreen then
+		return false
+	end
+	
+	if unitOwner:IsThePlayer() then
+		if self.tPDAOptions.bShowMyNameplate and not unitOwner:IsDead() then
+			bShowNameplate = true
+		else
+			bShowNameplate = false
+		end
+	end
+
+	return bShowNameplate or tNameplate.bIsTarget
+end
+
+function PDA:OnUnitOcclusionChanged(wndHandler, wndControl, bOccluded)
+	local idUnit = wndHandler:GetId()
+	if self.arWnd2Nameplate[idUnit] ~= nil then
+		self.arWnd2Nameplate[idUnit].bOccluded = bOccluded
+		self:UpdateNameplateVisibility(self.arWnd2Nameplate[idUnit])
+	end
+end
+
+function PDA:UpdateNameplateVisibility(tNameplate)
+	local bNewShow = self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
+	if bNewShow ~= tNameplate.bShow then
+		tNameplate.wndNameplate:Show(bNewShow)
+		tNameplate.bShow = bNewShow
+	end
+end
+
+function PDA:OnWorldLocationOnScreen(wndHandler, wndControl, bOnScreen)
+	local idUnit = wndHandler:GetId()
+	if self.arWnd2Nameplate[idUnit] ~= nil then
+		self.arWnd2Nameplate[idUnit].bOnScreen = bOnScreen
+	end
 end
 
 function PDA:DrawNameplate(tNameplate)
+	
+	if not tNameplate.bShow then
+		return
+	end
+	
+	local unitPlayer = self.unitPlayer
 	local unitOwner = tNameplate.unitOwner
 	local wndNameplate = tNameplate.wndNameplate
 	
-	if not wndNameplate then
-		local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
-		wnd:SetUnit(unitNew)
-		wnd:Show(true)
-		tNameplate.wndNameplate = wnd
-		wndNameplate = wnd
-	end
+	tNameplate.eDisposition = unitOwner:GetDispositionTo(unitPlayer)
 	
-	local bShowNameplate = self:CheckShowNameplate(tNameplate)
-	wndNameplate:Show(bShowNameplate)
+	if unitOwner:IsMounted() and wndNameplate:GetUnit() == unitOwner then
+		wndNameplate:SetUnit(unitOwner:GetUnitMount(), 1)
+	elseif not unitOwner:IsMounted() and wndNameplate:GetUnit() ~= unitOwner then
+		wndNameplate:SetUnit(unitOwner, 1)
+	end
+
+	local bShowNameplate = return self:CheckDrawDistance(tNameplate) and self:HelperVerifyVisibilityOptions(tNameplate)
+	wndNameplate:Show(bShowNameplate, false)
 	if not bShowNameplate then
 		return
 	end
@@ -366,7 +471,7 @@ function PDA:DrawRPNamePlate(tNameplate)
 	local xmlNamePlate = XmlDoc:new()
 	local wndNameplate = tNameplate.wndNameplate
 	local wndName = wndNameplate:FindChild("wnd_Name")
-
+	
 	tRPColors = self.tPDAOptions.tRPColors
 	tCSColors = self.tPDAOptions.tCSColors
 		
@@ -378,54 +483,6 @@ function PDA:DrawRPNamePlate(tNameplate)
 	if (rpTitle ~= nil) then xmlNamePlate:AddLine(rpTitle, tCSColors.strEntryColor, "CRB_Interface8","Center") end
 	wndName:SetDoc(xmlNamePlate)
 	if rpStatus ~= nil then wndNameplate:FindChild("btn_RP"):SetBGColor(tRPColors[rpStatus]) end
-	wndNameplate:Show(true)
-end
-
-function PDA:CheckShowNameplate(tNameplate)
-	
-	local unitPlayer = GameLib.GetPlayerUnit()
-	local unitOwner = tNameplate.unitOwner
-	local bShowNameplate
-	local bInRange
-	
-	if not unitOwner then
-	    return false
-	end
-	
-	if unitPlayer then
-		tPosTarget = unitOwner:GetPosition()
-		tPosPlayer = unitPlayer:GetPosition()
-
-		if tPosTarget == nil then
-			 bInRange = false
-		end
-
-		local nDeltaX = tPosTarget.x - tPosPlayer.x
-		local nDeltaY = tPosTarget.y - tPosPlayer.y
-		local nDeltaZ = tPosTarget.z - tPosPlayer.z
-
-		local nDistance = (nDeltaX * nDeltaX) + (nDeltaY * nDeltaY) + (nDeltaZ * nDeltaZ)
-
-		if tNameplate.bIsTarget or tNameplate.bIsCluster then
-			bInRange = nDistance < knTargetRange
-		else
-			bInRange = nDistance < (self.nMaxRange * self.nMaxRange) -- squaring for quick maths
-		end
-	end
-	
-	if unitOwner:IsOccluded() or not unitOwner:ShouldShowNamePlate() then
-		bShowNameplate = false
-	end
-
-	if unitOwner:GetType() == "Player" then
-		bShowNameplate = true
-	end
-	
-	if unitOwner:IsThePlayer() then
-		bShowNameplate = self.tPDAOptions.bShowMyNameplate or false
-	end
-
-	return (bShowNameplate and bInRange)
 end
 
 -----------------------------------------------------------------------------------------------
@@ -488,12 +545,48 @@ function PDA:DrawCharacterSheet(unitName)
 	
 	if self.wndCS:FindChild("wnd_Tabs:btn_History"):IsChecked() == true and bPublicHistory == true then
 		if rpHistory ~= nil then
-			local parsedHistory = GeminiMarkup:ParseMarkup(rpHistory, self.tPDAOptions.tMarkupStyles)
+			local parsedHistory = self:ParseMarkup(rpHistory)
 			strCharacterSheet = strCharacterSheet..string.format("<P font=\"CRB_Interface12_BO\" TextColor=\"%s\">Biographical Information: </P>",  self.tPDAOptions.tCSColors.strLabelColor)..parsedHistory
 		end
 	end
 	
 	return strCharacterSheet
+end
+
+function PDA:ParseMarkup(strText)
+	strText = string.gsub(strText, "\n", "")
+	for i, v in pairs(self.tPDAOptions["tMarkupStyles"]) do
+		local strOpenTag = "\{"..v.tag.."\}"
+		local strCloseTag = "\{\/"..v.tag.."\}"
+		local strSubTagOpen= [[<P Font="]]..v.font..[[" Align="]]..v.align..[[" TextColor="]]..v.color..[[">]]
+		local strSubTagClose = "</P>"
+
+		if v.tag == "li" then
+			strSubTagOpen= strSubTagOpen..[[  ●  ]]
+		end
+		if string.find(strText, strOpenTag) then
+			strText = string.gsub(strText, strOpenTag, strSubTagOpen)
+		end
+		if string.find(strText, strCloseTag) then
+			
+			strText = string.gsub(strText, strCloseTag, strSubTagClose)
+		end
+	end
+	local _, nOpenCount = string.gsub(strText, "<P", "")
+	local _, nCloseCount = string.gsub(strText, "/P>", "")
+	
+	--[[if nOpenCount < nCloseCount then
+		local nCloseTagsNeeded = nOpenCount - nCloseCount
+		for i = 1, nCloseTagsNeeded do
+			strText = strText.."</P>"
+		end
+	elseif nCloseCount > nOpenCount then
+		local nCloseTagsNeeded = nCloseCount - nOpenCount
+		for i = 1, nCloseTagsNeeded do
+			strText = "<P>"..strText
+		end
+	end]]
+	return strText
 end
 
 function PDA:CreateCharacterSheet(wndHandler, wndControl)
@@ -712,15 +805,39 @@ function PDA:OnEditHistoryShow(wndHandler, wndControl)
 	local wndPublicBio = self.wndMain:FindChild("wnd_EditBackground:input_b_PublicHistory")
 	local strBioText = RPCore:GetLocalTrait("biography") or ""
 	local bPublicBio = RPCore:GetLocalTrait("publicBio") or false
-	
+	local wndEditBox = self.wndMain:FindChild("wnd_EditBackground:input_s_History")
 	strBioText = string.gsub(strBioText, "<BR />", "\n")
 	
-	GeminiMarkup:SetText(self.wndMarkupEdit, strBioText)
+	wndEditBox:SetText(strBioText)
 	wndPublicBio:SetCheck(bPublicBio)
+	self:OnEditHistoryBoxChanged( wndEditBox, wndEditBox)
+end
+
+function PDA:OnEditHistoryBoxChanged( wndHandler, wndControl, strText )
+	local wndCounter = wndControl:GetParent():FindChild("wnd_CharacterCount")
+	if wndCounter:IsShown() ~= true then return end
+	local nCharacterCount = string.len(wndControl:GetText())
+	wndCounter:SetText(tostring(knBioMax - nCharacterCount))
+end
+
+function PDA:InsertTag(wndHandler, wndControl)
+	local wndEditBox = wndControl:GetParent():FindChild("input_s_History")
+	local tagType = string.sub(wndControl:GetName(), 5)
+	local tSelected = wndEditBox:GetSel()
+	
+	if (tSelected.cpEnd - tSelected.cpBegin ) > 0 then
+		local strSelectedText = string.sub(wndEditBox:GetText(), tSelected.cpBegin, tSelected.cpEnd)
+		wndEditBox:InsertText(string.format("\{%s\}%s\{/%s\}",tagType, strSelectedText, tagType))
+	else
+		wndEditBox:InsertText(string.format("\{%s\}\{/%s\}",tagType, tagType))
+		wndEditBox:SetSel(string.len(wndEditBox:GetText()) - (string.len(tagType) + 3), string.len(wndEditBox:GetText()) - (string.len(tagType) + 3))
+	end
+	
 end
 
 function PDA:OnEditHistoryOK(wndHandler, wndControl)
-	local bioText = GeminiMarkup:GetText(self.wndMarkupEdit)
+	local editBox = self.wndMain:FindChild("wnd_EditBackground:input_s_History")
+	local bioText = editBox:GetText()
 	RPCore:SetLocalTrait("biography", bioText)
 end
 
