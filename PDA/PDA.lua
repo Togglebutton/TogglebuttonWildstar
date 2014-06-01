@@ -247,9 +247,9 @@ function PDA:OnDocumentLoaded()
 
 	Apollo.RegisterTimerHandler("PDA_RefreshTimer","RefreshPlates",self)
 	Apollo.CreateTimer("PDA_RefreshTimer", 1, true)
-	if self.tPDAOptions.bShowMyNameplate then
-		self:OnRPCoreCallback({player = GameLib.GetPlayerUnit():GetName()})
-	end
+	
+	Apollo.RegisterTimerHandler("PDA_UpdateMyTimer","UpdateMyNameplate",self)
+	Apollo.CreateTimer("PDA_UpdateMyTimer", 5, false)
 end
 
 function PDA:OnInterfaceMenuListHasLoaded()
@@ -283,6 +283,12 @@ end
 -----------------------------------------------------------------------------------------------
 -- PDA Nameplate Functions
 -----------------------------------------------------------------------------------------------
+function PDA:UpdateMyNameplate()
+	if self.tPDAOptions.bShowMyNameplate then
+		self:OnRPCoreCallback({player = GameLib.GetPlayerUnit():GetName()})
+	end
+end
+
 function PDA:OnUnitCreated(unitNew)
 	if not self.unitPlayer then
 		self.unitPlayer = GameLib.GetPlayerUnit()
@@ -447,7 +453,7 @@ function PDA:DrawNameplate(tNameplate)
 		wndNameplate:SetUnit(unitOwner, 1)
 	end
 
-	local bShowNameplate = return self:CheckDrawDistance(tNameplate) and self:HelperVerifyVisibilityOptions(tNameplate)
+	local bShowNameplate = self:CheckDrawDistance(tNameplate) and self:HelperVerifyVisibilityOptions(tNameplate)
 	wndNameplate:Show(bShowNameplate, false)
 	if not bShowNameplate then
 		return
