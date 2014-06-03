@@ -837,6 +837,14 @@ function RPCore:GetCachedPlayerList()
 	return tCachedPlayers
 end
 
+function RPCore:ClearCachedPlayerList()
+	for strPlayerName,_ in pairs(self.tCachedPlayerData) do
+		if strPlayerName ~= GameLib.GetPlayerUnit():GetName() then
+			self.tCachedPlayerData[strPlayerName] = nil
+		end
+	end
+end
+
 function RPCore:CacheAsTable()
 	local tData = {}
 	

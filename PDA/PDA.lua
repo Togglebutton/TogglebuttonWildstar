@@ -65,8 +65,8 @@ local ktPDAOptions =
 		[7] = "ffff00ff", --magenta
 	},
 	tCSColors = {
-		strLabelColor = "UI_TextHoloBodyHighlight",
-		strEntryColor = "UI_TextHoloTitle",
+		strLabelColor = "FF00FA9A",
+		strEntryColor = "FF00FFFF",
 	},
 	tMarkupStyles = {
 		{tag = "h1", font = "CRB_Interface14_BBO", color = "UI_TextHoloTitle", align = "Center"},
@@ -242,9 +242,12 @@ function PDA:OnDocumentLoaded()
 	Apollo.RegisterEventHandler("PDA_HeaderColorUpdated", "UpdateHeadingDisplay", self)
 	Apollo.RegisterEventHandler("ToggleAddon_PDA", "OnPDAOn", self)
 	Apollo.RegisterEventHandler("RPCore_VersionUpdated", "OnRPCoreCallback", self)
+	
 	Apollo.RegisterSlashCommand("pda", "OnPDAOn", self)
+	Apollo.RegisterSlashCommand("pdaclear", "ClearCache", self)
+	
 	Apollo.RegisterEventHandler("ChangeWorld", "UpdatePlayerNameplate", self)
-
+	
 	Apollo.RegisterTimerHandler("PDA_RefreshTimer","RefreshPlates",self)
 	Apollo.CreateTimer("PDA_RefreshTimer", 1, true)
 	
@@ -273,6 +276,10 @@ function PDA:OnConfigure()
 	self.wndOptions:Show(true)
 end
 
+function PDA:ClearCache()
+	RPCore:ClearCachedPlayerList()
+end
+
 -----------------------------------------------------------------------------------------------
 -- PDA Functions
 -----------------------------------------------------------------------------------------------
@@ -295,8 +302,15 @@ function PDA:OnUnitCreated(unitNew)
 	end
 	if unitNew:IsThePlayer() then
 		self:OnRPCoreCallback({player = unitNew:GetName()})
+		return
 	end
 	if unitNew:IsACharacter() then
+		for i, player in pairs(RPCore:GetCachedPlayerList()) do
+			if unitNew:GetName() == player then
+				self:OnRPCoreCallback({player = unitNew:GetName()})
+				return
+			end
+		end
 		local rpVersion, rpAddons = RPCore:QueryVersion(unitNew:GetName())
 	end
 end
@@ -304,6 +318,7 @@ end
 function PDA:OnRPCoreCallback(tArgs)
 	local strUnitName = tArgs.player
 	local unit = GameLib.GetPlayerUnitByName(strUnitName)
+	if unit == nil then return end
 	local idUnit = unit:GetId()
 	if self.arUnit2Nameplate[idUnit] ~= nil and self.arUnit2Nameplate[idUnit].wndNameplate:IsValid() then
 		return
@@ -323,6 +338,7 @@ function PDA:OnRPCoreCallback(tArgs)
 		bOccluded 		= wnd:IsOccluded(),
 		eDisposition	= unit:GetDispositionTo(self.unitPlayer),
 		bShow			= false,
+		nOffset			= self.tPDAOptions.nOffset or 0,
 	}
 	
 	self.arUnit2Nameplate[idUnit] = tNameplate
@@ -368,7 +384,7 @@ function PDA:CheckDrawDistance(tNameplate)
 	tPosTarget = unitOwner:GetPosition()
 	tPosPlayer = unitPlayer:GetPosition()
 
-	if tPosTarget == nil then
+	if tPosTarget == nil or tPosPlayer == nil then
 		return
 	end
 
@@ -462,8 +478,7 @@ function PDA:DrawNameplate(tNameplate)
 	if self.tPDAOptions.nOffset then
 		if tNameplate.nOffset ~= self.tPDAOptions.nOffset then
 			tNameplate.nOffset = self.tPDAOptions.nOffset
-			local nL, nT, nR, nB = wndNameplate:GetAnchorOffsets()
-			wndNameplate:SetAnchorOffsets(nL, nT - tNameplate.nOffset, nR, nB - tNameplate.nOffset)
+			wndNameplate:SetAnchorOffsets(-150, -40 - tNameplate.nOffset, 150, 0 - tNameplate.nOffset)			
 		end
 	end
 	
@@ -560,7 +575,8 @@ function PDA:DrawCharacterSheet(unitName)
 end
 
 function PDA:ParseMarkup(strText)
-	strText = string.gsub(strText, "\n", "")
+	strText = string.gsub(strText, "\n", "<BR />")
+			
 	for i, v in pairs(self.tPDAOptions["tMarkupStyles"]) do
 		local strOpenTag = "\{"..v.tag.."\}"
 		local strCloseTag = "\{\/"..v.tag.."\}"
@@ -601,7 +617,6 @@ function PDA:CreateCharacterSheet(wndHandler, wndControl)
 	if not self.wndCS then
 		self.wndCS = Apollo.LoadForm(self.xmlDoc, "CharSheetForm", nil, self)
 		self.wndCS:FindChild("wnd_Tabs:btn_Profile"):SetCheck(true)
-		self.wndCS:Show(false)
 	end
 	
 	local unitName = unit:GetName()
@@ -611,6 +626,7 @@ function PDA:CreateCharacterSheet(wndHandler, wndControl)
 		self.wndCS:SetData(unitName)
 		self.wndCS:FindChild("wnd_CharSheet"):SetAML(self:DrawCharacterSheet(unitName))
 		self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(unit)
+		self.wndCS:FindChild("wnd_Tabs:btn_Profile"):SetCheck(true)
 		self.wndCS:Show(true)
 		self.wndCS:ToFront()
 	end	
@@ -863,6 +879,7 @@ function PDA:OnOptionsOK()
 	local wndOptions = self.wndOptions:FindChild("wnd_ScrollFrame")
 	local strLabelColor
 	local strEntryColor
+	local bNeedReload = false
 	
 	for i = 0, 7 do
 		local color = wndOptions:FindChild("btn_Color_State"..tostring(i)):FindChild("swatch"):GetBGColor():ToTable()
@@ -872,8 +889,8 @@ function PDA:OnOptionsOK()
 	local tColor = wndOptions:FindChild("btn_Color_Name"):FindChild("swatch"):GetBGColor():ToTable()
 	strLabelColor = GeminiColor:RGBAPercToHex(tColor.r, tColor.g, tColor.b, tColor.a)
 	
-	tColor = wndOptions:FindChild("btn_Color_Title"):FindChild("swatch"):GetBGColor():ToTable()
-	strEntryColor = GeminiColor:RGBAPercToHex(tColor.r, tColor.g, tColor.b, tColor.a)
+	local tColor2 = wndOptions:FindChild("btn_Color_Title"):FindChild("swatch"):GetBGColor():ToTable()
+	strEntryColor = GeminiColor:RGBAPercToHex(tColor2.r, tColor2.g, tColor2.b, tColor2.a)
 	
 	local wndStyles = wndOptions:FindChild("group_BioMarkupStyles")
 	
@@ -881,9 +898,8 @@ function PDA:OnOptionsOK()
 		local wndStylePanel = wndStyles:FindChild("wnd_"..v.tag)
 		local strFont = wndStylePanel:FindChild("btn_DDFont:ddList"):GetRadioSelButton("DDList"):GetName()
 		local tColor = wndStylePanel:FindChild("btn_Color:swatch"):GetBGColor():ToTable()
-		local strColor = GeminiColor:RGBAPercToHex(tColor.r, tColor.g, tColor.b, tColor.a) --
+		local strColor = GeminiColor:RGBAPercToHex(tColor.r, tColor.g, tColor.b, tColor.a) 
 		local strAlign = wndStylePanel:FindChild("btn_DDAlign:ddList"):GetRadioSelButton("DDList"):GetName()
-		
 		v.align = string.sub(strAlign,5)
 		v.color = strColor
 		v.font = string.sub(strFont, 5)
@@ -893,8 +909,9 @@ function PDA:OnOptionsOK()
 	self.tPDAOptions.tCSColors.strEntryColor = strEntryColor
 	self.tPDAOptions.nOffset = wndOptions:FindChild("input_n_Offset"):GetValue()
 	self.tPDAOptions.bShowMyNameplate = wndOptions:FindChild("input_b_ShowPlayerNameplate"):IsChecked()
-
+	
 	self.wndOptions:Show(false) -- hide the window
+	self:UpdateMyNameplate()
 end
 
 function PDA:OnOptionsCancel()
@@ -919,9 +936,9 @@ function PDA:OnShowOptions(wndHandler, wndControl)
 		local sampleTest = string.format("<P Align=\"%s\" Font=\"%s\" TextColor=\"%s\"> {%s} Text Sample</P>",tTag.align, tTag.font, tTag.color, tTag.tag)
 		wndStylePanel:FindChild("wnd_Sample"):SetAML(sampleTest)
 	end
-	
-	wndOptions:FindChild("btn_Color_Name"):FindChild("swatch"):SetBGColor(self.tPDAOptions.tCSColors.strLabelColor)
-	wndOptions:FindChild("btn_Color_Title"):FindChild("swatch"):GetBGColor(self.tPDAOptions.tCSColors.strEntryColor)
+	local tCSColors = self.tPDAOptions.tCSColors
+	wndOptions:FindChild("btn_Color_Name"):FindChild("swatch"):SetBGColor(tCSColors.strLabelColor)
+	wndOptions:FindChild("btn_Color_Title"):FindChild("swatch"):GetBGColor(tCSColors.strEntryColor)
 	wndOptions:FindChild("input_b_ShowPlayerNameplate"):SetCheck(self.tPDAOptions.bShowMyNameplate)
 	wndOptions:FindChild("input_n_Offset"):SetMinMax(0,100)
 	wndOptions:FindChild("input_n_Offset"):SetValue(self.tPDAOptions.nOffset or 0)
@@ -978,13 +995,18 @@ function PDA:ColorButtonClick(wndHandler, wndControl)
 end
 
 function PDA:ResetHeadingStyles(wndHandler, wndControl)
-	self.tPDAOptions.tMarkupStyles = ktPDAOptions.tMarkupStyles
+	for i,v in pairs(ktPDAOptions.tMarkupStyles) do
+		self.tPDAOptions.tMarkupStyles[i] = v
+	end
 	self:OnShowOptions(self.wndOptions,self.wndOptions)
 end
 
 function PDA:ResetNameplateColors(wndHandler, wndControl)
-	self.tPDAOptions.tRPColors = ktPDAOptions.tRPColors
-	self.tPDAOptions.tCSColors = ktPDAOptions.tCSColors
+	for i,v in pairs(ktPDAOptions.tRPColors) do
+		self.tPDAOptions.tRPColors[i] = v
+	end
+	self.tPDAOptions.tCSColors.strLabelColor = ktPDAOptions.tCSColors.strLabelColor
+	self.tPDAOptions.tCSColors.strEntryColor = ktPDAOptions.tCSColors.strEntryColor
 	self:OnShowOptions(self.wndOptions,self.wndOptions)
 end
 
