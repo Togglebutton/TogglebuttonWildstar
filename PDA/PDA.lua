@@ -242,16 +242,14 @@ function PDA:OnDocumentLoaded()
 	Apollo.RegisterEventHandler("PDA_HeaderColorUpdated", "UpdateHeadingDisplay", self)
 	Apollo.RegisterEventHandler("ToggleAddon_PDA", "OnPDAOn", self)
 	Apollo.RegisterEventHandler("RPCore_VersionUpdated", "OnRPCoreCallback", self)
-	
-	Apollo.RegisterSlashCommand("pda", "OnPDAOn", self)
-	Apollo.RegisterSlashCommand("pdaclear", "ClearCache", self)
-	
 	Apollo.RegisterEventHandler("ChangeWorld", "UpdatePlayerNameplate", self)
+
+	Apollo.RegisterSlashCommand("pda", "OnPDAOn", self)
 	
 	Apollo.RegisterTimerHandler("PDA_RefreshTimer","RefreshPlates",self)
-	Apollo.CreateTimer("PDA_RefreshTimer", 1, true)
-	
 	Apollo.RegisterTimerHandler("PDA_UpdateMyTimer","UpdateMyNameplate",self)
+	
+	Apollo.CreateTimer("PDA_RefreshTimer", 1, true)
 	Apollo.CreateTimer("PDA_UpdateMyTimer", 5, false)
 end
 
@@ -292,7 +290,7 @@ end
 -----------------------------------------------------------------------------------------------
 function PDA:UpdateMyNameplate()
 	if self.tPDAOptions.bShowMyNameplate then
-		self:OnRPCoreCallback({player = GameLib.GetPlayerUnit():GetName()})
+		self:OnRPCoreCallback({player = self.unitPlayer:GetName()})
 	end
 end
 
@@ -302,13 +300,11 @@ function PDA:OnUnitCreated(unitNew)
 	end
 	if unitNew:IsThePlayer() then
 		self:OnRPCoreCallback({player = unitNew:GetName()})
-		return
 	end
 	if unitNew:IsACharacter() then
 		for i, player in pairs(RPCore:GetCachedPlayerList()) do
 			if unitNew:GetName() == player then
 				self:OnRPCoreCallback({player = unitNew:GetName()})
-				return
 			end
 		end
 		local rpVersion, rpAddons = RPCore:QueryVersion(unitNew:GetName())
@@ -366,7 +362,7 @@ function PDA:RefreshPlates()
 	for idx, tNameplate in pairs(self.arUnit2Nameplate) do
 		local bNewShow = self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
 		if bNewShow ~= tNameplate.bShow then
-			tNameplate.wndNameplate:Show(bNewShow)
+			tNameplate.wndNameplate:Show(bNewShow, false)
 			tNameplate.bShow = bNewShow
 		end
 		self:DrawNameplate(tNameplate)
@@ -404,11 +400,9 @@ function PDA:CheckDrawDistance(tNameplate)
 end
 
 function PDA:HelperVerifyVisibilityOptions(tNameplate)
-	local unitPlayer = self.unitPlayer
 	local unitOwner = tNameplate.unitOwner
-	local eDisposition = tNameplate.eDisposition
-
 	local bHiddenUnit = not unitOwner:ShouldShowNamePlate()
+	
 	if bHiddenUnit then
 		return false
 	end
@@ -418,14 +412,10 @@ function PDA:HelperVerifyVisibilityOptions(tNameplate)
 	end
 	
 	if unitOwner:IsThePlayer() then
-		if self.tPDAOptions.bShowMyNameplate and not unitOwner:IsDead() then
-			bShowNameplate = true
-		else
-			bShowNameplate = false
-		end
+		return self.tPDAOptions.bShowMyNameplate
 	end
-
-	return bShowNameplate or tNameplate.bIsTarget
+	
+	return true
 end
 
 function PDA:OnUnitOcclusionChanged(wndHandler, wndControl, bOccluded)
@@ -439,7 +429,7 @@ end
 function PDA:UpdateNameplateVisibility(tNameplate)
 	local bNewShow = self:HelperVerifyVisibilityOptions(tNameplate) and self:CheckDrawDistance(tNameplate)
 	if bNewShow ~= tNameplate.bShow then
-		tNameplate.wndNameplate:Show(bNewShow)
+		tNameplate.wndNameplate:Show(bNewShow, false)
 		tNameplate.bShow = bNewShow
 	end
 end
@@ -509,11 +499,14 @@ end
 -----------------------------------------------------------------------------------------------
 -- PDA Character Sheet Functions
 -----------------------------------------------------------------------------------------------
-function PDA:DrawCharacterSheet(unitName)
+function PDA:DrawCharacterSheet(unitName, unit)
 
 	local rpFullname, rpTitle, rpShortDesc, rpStateString, rpHeight, rpWeight, rpAge, rpRace, rpGender, rpJob, bPublicHistory, rpHistory
 	local xmlCS = XmlDoc.new()
-	local unit = GameLib.GetPlayerUnitByName(unitName)
+	
+	if not unit then
+		unit = GameLib.GetPlayerUnitByName(unitName)
+	end
 	
 	local strCharacterSheet = ""
 	
@@ -575,8 +568,17 @@ function PDA:DrawCharacterSheet(unitName)
 end
 
 function PDA:ParseMarkup(strText)
-	strText = string.gsub(strText, "\n", "<BR />")
-			
+	strText = FixXMLString(strText)
+	local tP
+	
+	for i,v in pairs(self.tPDAOptions.tMarkupStyles) do
+		if v.tag == "p" then
+			tP = v
+		end
+	end
+	
+	strText = string.gsub(strText, "\n\n", "<P Font=\""..tP.font.."\" TextColor=\"00ffffff\">BlankLine</P>")
+	strText = string.gsub(strText, "{hr}", "<T Font=\""..tP.font.."\" TextColor=\"00ffffff\" BGColor = \""..tP.color.."\"Image=\"CRB_Tooltips:sprTooltip_HorzDividerLine\" Align=\"Center\">HorizontalRule</T>")
 	for i, v in pairs(self.tPDAOptions["tMarkupStyles"]) do
 		local strOpenTag = "\{"..v.tag.."\}"
 		local strCloseTag = "\{\/"..v.tag.."\}"
@@ -624,7 +626,7 @@ function PDA:CreateCharacterSheet(wndHandler, wndControl)
 	
 	if (rpVersion ~= nil) then
 		self.wndCS:SetData(unitName)
-		self.wndCS:FindChild("wnd_CharSheet"):SetAML(self:DrawCharacterSheet(unitName))
+		self.wndCS:FindChild("wnd_CharSheet"):SetAML(self:DrawCharacterSheet(unitName, unit))
 		self.wndCS:FindChild("wnd_Portrait"):FindChild("costumeWindow_Character"):SetCostume(unit)
 		self.wndCS:FindChild("wnd_Tabs:btn_Profile"):SetCheck(true)
 		self.wndCS:Show(true)
@@ -1005,8 +1007,8 @@ function PDA:ResetNameplateColors(wndHandler, wndControl)
 	for i,v in pairs(ktPDAOptions.tRPColors) do
 		self.tPDAOptions.tRPColors[i] = v
 	end
-	self.tPDAOptions.tCSColors.strLabelColor = ktPDAOptions.tCSColors.strLabelColor
-	self.tPDAOptions.tCSColors.strEntryColor = ktPDAOptions.tCSColors.strEntryColor
+	self.tPDAOptions.tCSColors.strLabelColor = "FF00FA9A"
+	self.tPDAOptions.tCSColors.strEntryColor = "FF00FFFF"
 	self:OnShowOptions(self.wndOptions,self.wndOptions)
 end
 
